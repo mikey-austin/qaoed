@@ -1,5 +1,5 @@
 Version 0.79
- Applied include-patch by Mark Sutton <mark(at)fubra.com>
+ Applied include-patch by Oleksiy Krivoshey <oleksiy@luckyteam.co.uk>
 
 Version 0.78
  FreeBSD port completed.
