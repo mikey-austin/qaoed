@@ -6,7 +6,7 @@ all:    qaoed
 
 OBJS  = devices.o network.o main.o logging.o acl.o parseconf.o
 RCFGOBJS = rcfg/readconf.o
-ARCHOBJS = arch/bsd_net.o arch/linux_net.o
+ARCHOBJS = arch/bsd_net.o arch/linux_net.o arch/bsd_blk.o arch/linux_blk.o
 INCLUDES = include/acl.h include/eth.h include/aoe.h include/qaoed.h \
 	   include/hdreg.h include/logging.h include/byteorder.h
 

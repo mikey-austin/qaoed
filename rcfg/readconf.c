@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <glob.h>
 
 #include "rcfg.h"
 #include "rcfgkw.h"
@@ -259,11 +260,18 @@ struct tok *tokenize(FILE *fp,struct cfgerror *er)
   char linebuff[400];
   char *p = linebuff;
   struct tok *tokens = NULL;
+  struct tok *newtokens = NULL;
   char *tstart;
   char *tend;
   int tlen;
   int comment = 0; 
   int  quotation = 0;
+  int i = 0;
+  int k = 0;
+  int j = 0;
+  int tlimit = 0;
+  FILE * fpi = NULL;
+  glob_t globbuf;
    
   while( fgets(linebuff,(sizeof(linebuff) -1 ),fp))
     {
@@ -425,10 +433,73 @@ struct tok *tokenize(FILE *fp,struct cfgerror *er)
        free(tokens);
        return(NULL);
     }
-
+    
   if(tokens && tokens->tokidx > 0)
-    if(validatetokens(tokens,er) == 0)
+    if(validatetokens(tokens,er) == 0){
+       tlimit = tokens->tokidx;
+       for(i = 0; i < tlimit; i++){
+           //fprintf(stderr, "token[%d]: %s\n", i, tokens->tokens[i]);
+           if(!strcmp(tokens->tokens[i], "include")){
+               //fprintf(stderr, "we need to parse %s\n", tokens->tokens[i+2]);
+               globbuf.gl_offs = 0;
+               if(!glob(tokens->tokens[i+2], GLOB_ERR, NULL, &globbuf)){
+                   for(k=0; k<globbuf.gl_pathc; k++){
+                       //fprintf(stderr, "filename: %s\n", globbuf.gl_pathv[k]);
+
+                       newtokens = NULL;
+
+                       fpi = fopen(globbuf.gl_pathv[k],"r");
+                       if(fpi == NULL)
+                       {
+                           if(er != NULL)
+                               er->logfunc(er,"Failed to open configuration file: %s\n",globbuf.gl_pathv[k]);
+                           else
+                               fprintf(stderr, "Failed to open configuration file: %s\n",globbuf.gl_pathv[k]);
+                           
+                           free(tokens);
+                           return(NULL);
+                       }
+
+                       newtokens = tokenize(fpi, er);
+
+                       fclose(fpi);
+
+                       if(newtokens == NULL)
+                       {
+                           if(er != NULL)
+                               er->logfunc(er,"Failed to parse configuration file: %s\n",globbuf.gl_pathv[k]);
+                           else
+                               fprintf(stderr,"Failed to parse configuration file: %s\n",globbuf.gl_pathv[k]);
+                           free(tokens);
+                           return(NULL);
+                       }
+
+                       tokens->tokmax += newtokens->tokidx;
+                       tokens->tokens = (char **) realloc(tokens->tokens,
+                                            sizeof(char *) * tokens->tokmax);
+                       for(j = 0; j<newtokens->tokidx; j++){
+                           tokens->tokens[tokens->tokidx] = (char *) malloc(strlen(newtokens->tokens[j])+1);
+                           memcpy(tokens->tokens[tokens->tokidx], newtokens->tokens[j], strlen(newtokens->tokens[j])+1);
+                           tokens->tokidx++;
+                       }
+
+                   }
+                   globfree(&globbuf);
+               } else {
+                  if(er != NULL)
+                        er->logfunc(er,"glob() failed: %s\n", strerror(errno));
+                  else
+                        fprintf(stderr,"glob() failed: %s\n", strerror(errno));
+       
+                  free(tokens);
+                  return(NULL);
+               }
+           }
+       }
+    
+    
       return(tokens);
+    }
   
   /*else */
   free(tokens);

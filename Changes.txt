@@ -1,10 +1,17 @@
+Version 0.79
+ Applied include-patch by Mark Sutton <mark(at)fubra.com>
+
+Version 0.78
+ FreeBSD port completed.
+ Mac OSX port completed.
+
 Version 0.77
  Robert Clark found and fixed an LBA48-related bug. Thanks!
 
 Version 0.76 
  Applied LFS and Jumbo-frame patches recieved from Robert Clark 
    aoe(at)defuturo.co.uk. Thanks! 
- Relased the source under the GNU Public license.
+ Released the source under the GNU Public license.
 
 Version 0.75
  This is the first version of qaoed to actually have a version number :)

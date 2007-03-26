@@ -134,3 +134,4 @@ int qaoed_listener(struct threadargs *args);
 int qaoed_pktdestroy(struct pkt *packet);
 void processpacket(struct qconfig *conf, struct ifst *ifentry, 
 		   struct pkt *Packet, struct aoe_hdr *aoepkt, int len);
+int arch_getsize(int fd, void *mediasize);
