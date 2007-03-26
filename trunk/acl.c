@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <sys/types.h>
 
 #include "include/qaoed.h"
 #include "include/acl.h"

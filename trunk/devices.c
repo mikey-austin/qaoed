@@ -724,7 +724,7 @@ int qaoed_startworker(struct aoedev *device)
 /* function called to start up a new device */
 int qaoed_startdevice(struct aoedev *device)
 {
-   struct stat64 fstat;
+   struct stat fstat;
    int fd;
    
    if(device == NULL)
@@ -765,19 +765,20 @@ int qaoed_startdevice(struct aoedev *device)
 	return(-1);
      }
    
-   if(stat64(device->devicename,&fstat) == 0)
+   if(stat(device->devicename,&fstat) == 0)
      {
-	if(S_ISBLK(fstat.st_mode))
+	if(S_ISBLK(fstat.st_mode) ||
+           S_ISCHR(fstat.st_mode))	
 	  {	
 	     off_t mediasize;
 	     int error;
 	     
-	     error = ioctl(fd, BLKGETSIZE64, &mediasize);
-	     
+	     error = arch_getsize(fd,&mediasize);
+	    
 	     if (error)
 	       printf("ioctl(BLKGETSIZE64) failed, probably not a disk.");
-	     
-	     device->size = (mediasize >> 9); /* >>9 == /512 */
+
+	     device->size = mediasize;
 	     
 	  }	  
 	else

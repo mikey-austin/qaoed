@@ -2,14 +2,18 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <errno.h>
 #include <syslog.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <fcntl.h>
 
 #include "../include/qaoed.h"
 #include "../include/logging.h"
+
+/* #define DEBUG 1 */
 
 #ifdef __APPLE__
  #define USEBPF 1
@@ -88,15 +92,15 @@ int qaoed_opensock(struct ifst *ifentry)
        return(-1);
      }
 
-   /* We dont want to se outgoing packets */
+   /* We dont want to see outgoing packets */
      ioctlarg = 0;
-     /*
+     
      if(ioctl(ifentry->sock, BIOCSSEESENT, &ioctlarg) == -1)
      {
        logfunc(ifentry->log,LOG_ERR,"BIOCSSEESENT failed for %s : %s\n",
 	       ifentry->ifname,strerror(errno));
        return(-1);
-       } */
+       } 
      
    /* We want the packets as they come in  */
      ioctlarg = 1;
@@ -194,7 +198,10 @@ int qaoed_listener(struct threadargs *args)
 	   /* Extracts each packet and pass it to processpacket() */
 	   while(( (char *)pkt - (char *)packet->raw ) < len)
 	     {
-	       
+	   #ifdef DEBUG
+		printf("Processing packet\n");
+		fflush(stdout);
+	#endif    
 	       /* `Calculate` bpfHeader-start */
 	       bpfHeader = (struct bpf_hdr *) pkt;
 	       

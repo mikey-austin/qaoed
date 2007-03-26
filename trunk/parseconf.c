@@ -840,7 +840,12 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
 
 	     conf->log_level = loglvresolv(c->rvalue);
 	    break;
-	    
+	   
+          case 'i':
+            if(strcmp(c->lvalue,"include") != 0)
+              goto error;
+            break;
+ 
 	  error:
 	  default:
 	     
@@ -1058,7 +1063,7 @@ int qaoed_validateconfig(struct qconfig *conf)
    struct aoedev *device;
    struct aoedev *search;
    struct ifst *ifent;
-   struct stat64 st;
+   struct stat st;
    struct aclhdr *acl;
    
    /* Make all access-lists have valid logging targets*/
@@ -1096,7 +1101,7 @@ int qaoed_validateconfig(struct qconfig *conf)
 	  return(-1);
 	}
       
-      if(stat64(device->devicename,&st) == -1)
+      if(stat(device->devicename,&st) == -1)
 	{
 	   logfunc(conf->log,LOG_ERR,
 		   "Failed to access %s: %s\n",
@@ -1104,17 +1109,27 @@ int qaoed_validateconfig(struct qconfig *conf)
 	   return(-1);
 	}
       
-      /* Macro borrowed from Linux include/sys/sys.c (glibc) */
-#define ISTYPE(mode, mask)  (((mode) & S_IFMT) == (mask))
-
       /* Make sure that the file is a regular file or a block device */
-      if(!(ISTYPE(st.st_mode,S_IFREG) || 
-	   ISTYPE(st.st_mode,S_IFBLK)))
+      if(!(S_ISBLK(st.st_mode) ||
+	  S_ISREG(st.st_mode)
+#ifdef __FreeBSD__ 
+       || S_ISCHR(st.st_mode)  /* On freebsd blkdevices are char devices (!?) */
+#endif
+))
 	 {
+#ifdef DEBUG	
+	 printf("S_ISREG(st.st_mode) == %d\n",
+	 S_ISREG(st.st_mode));
+
+	 printf("S_ISBLK(st.st_mode) == %d\n",
+	 S_ISBLK(st.st_mode));
+
+	 printf("S_ISCHR(st.st_mode) == %d\n",
+	 S_ISCHR(st.st_mode));
+#endif
 	    logfunc(conf->log,LOG_ERR,
 		   "error: %s is not a regular file or block device!\n",
 		    device->devicename);
-	    return(-1);
 	 }
     }
 
