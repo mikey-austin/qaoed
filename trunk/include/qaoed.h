@@ -51,7 +51,7 @@ struct ifst
 {
    char *ifname;           /* Name of interface */
    unsigned char status;   /* Status of interface thread */
-   pthread_t threadID;     /* Thread id if thread handling this interface */
+   pthread_t threadID;     /* Thread id of thread handling this interface */
    unsigned short ifindex; /* Interface index number (if any) */
    int sock;               /* Outgoing socket for reply */
    char *hwaddr;           /* src-address to use when sending */
@@ -77,7 +77,7 @@ struct aoedev
    unsigned char slot;     /*  8 bit */
    struct ifst *interface; /* interface */
    unsigned char status;   /* Status of device thread */
-   pthread_t threadID;     /* Thread id if thread handling this device */
+   pthread_t threadID;     /* Thread id of thread handling this device */
    int writecache;         /* Writecache on or off */
    int broadcast;          /* Broadcast on or off */
    
@@ -111,7 +111,10 @@ struct qconfig
    struct aoedev *devices;     /* Linked list with devices */
    struct aclhdr *acllist;     /* Linked list with access-lists */
    struct logging *loglist;    /* linked list with logging targets */
+
    
+   char *sockpath;            /* Path to unix socket for the API interface */
+   pthread_t APIthreadID;     /* ThreadID of thread for the API interface */
 };
 
 struct qconfig *qaoed_loadconfig();
