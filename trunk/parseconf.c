@@ -828,7 +828,9 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
    conf->syslog_level = LOG_INFO;
    conf->syslog_facility = LOG_DAEMON;
    conf->log = log;
-  
+   conf->sockpath = NULL; /* No API-socket by default */
+   
+   
   while(c)
     {
       if(c->type == ASSIGNMENT)
@@ -845,7 +847,14 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
             if(strcmp(c->lvalue,"include") != 0)
               goto error;
             break;
- 
+	     
+	   case 's': /* Path to unix domain socket used by API */
+	     if(strcmp(c->lvalue,"apisocket") != 0)
+		goto error;
+		
+		conf->sockpath=strdup(c->rvalue);
+		break;
+	     
 	  error:
 	  default:
 	     
