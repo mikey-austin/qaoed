@@ -34,7 +34,8 @@ char *keywords[] = {
      "{",
      "}",
      ";",
-     "include"
+     "include",
+     "apisocket"
 };
 
 #define KMAX (sizeof(keywords)/sizeof(char *))
@@ -65,6 +66,7 @@ char *datatype[] = {
   "syslog-facility","%s;",
   "persistent-cfg","%s;",
   "broadcast","%s;",
+  "apisocket","%s;",
   "include", "%s;"
 };
 
