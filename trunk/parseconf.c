@@ -848,7 +848,7 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
               goto error;
             break;
 	     
-	   case 's': /* Path to unix domain socket used by API */
+	   case 'a': /* Path to unix domain socket used by API */
 	     if(strcmp(c->lvalue,"apisocket") != 0)
 		goto error;
 		
@@ -878,6 +878,57 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
   return(conf);
 }
 
+/* Assign default values to a device */
+void qaoed_devdefaults(struct qconfig *conf,struct aoedev *device)
+{
+  /* If not assigned we take the value from the default struct */
+  if(device->shelf == 0xffff && conf->devdefault != NULL)
+    device->shelf = conf->devdefault->shelf;
+  
+  /* If not assigned we take the value from the default struct */
+  if(device->slot == 0xff && conf->devdefault != NULL)
+    device->slot = conf->devdefault->slot++;
+  
+  if(device->writecache == -1 && conf->devdefault != NULL)
+    device->writecache = conf->devdefault->writecache;
+  
+  if(device->broadcast == -1 && conf->devdefault != NULL)
+    device->broadcast = conf->devdefault->broadcast;
+  
+  if(device->interface == NULL && conf->devdefault != NULL)
+    device->interface = conf->devdefault->interface;
+  
+  /* Access lists */
+  if(device->wacl == NULL && conf->devdefault != NULL )
+    device->wacl = conf->devdefault->wacl;
+  
+  if(device->racl == NULL && conf->devdefault != NULL)
+    device->racl = conf->devdefault->racl;
+  
+  if(device->cfgracl == NULL && conf->devdefault != NULL)
+    device->cfgracl = conf->devdefault->cfgracl;
+  
+  if(device->cfgsetacl == NULL && conf->devdefault != NULL)
+    device->cfgsetacl = conf->devdefault->cfgsetacl;
+  
+  /* Logging target */
+  if(device->log == NULL && conf->devdefault != NULL)
+    device->log = conf->devdefault->log;
+  
+  /* If its still NULL, we assign the default log target */
+  if(device->log == NULL)
+    device->log = referencelog("default",conf);
+  
+  /* If broadcast&writecache still doesnt have values we set them here */
+  if(device->writecache == -1)
+    device->writecache = 1;
+  
+  if(device->broadcast == -1)
+    device->broadcast = 1;
+
+  return;
+}
+
 /* This function will go through the device configuration and assign
  * default values where applicable */
 int qaoed_defaultconfig(struct qconfig *conf)
@@ -885,52 +936,7 @@ int qaoed_defaultconfig(struct qconfig *conf)
    struct aoedev *device;
    
    for(device = conf->devices; device != NULL; device = device->next)
-     {
-	/* If not assigned we take the value from the default struct */
-	if(device->shelf == 0xffff && conf->devdefault != NULL)
-	  device->shelf = conf->devdefault->shelf;
-	
-	/* If not assigned we take the value from the default struct */
-	if(device->slot == 0xff && conf->devdefault != NULL)
-	  device->slot = conf->devdefault->slot++;
-	
-	if(device->writecache == -1 && conf->devdefault != NULL)
-	  device->writecache = conf->devdefault->writecache;
-	
-	if(device->broadcast == -1 && conf->devdefault != NULL)
-	  device->broadcast = conf->devdefault->broadcast;
-	
-	if(device->interface == NULL && conf->devdefault != NULL)
-	  device->interface = conf->devdefault->interface;
-
-	/* Access lists */
-	if(device->wacl == NULL && conf->devdefault != NULL )
-	  device->wacl = conf->devdefault->wacl;
-	
-	if(device->racl == NULL && conf->devdefault != NULL)
-	  device->racl = conf->devdefault->racl;
-	
-	if(device->cfgracl == NULL && conf->devdefault != NULL)
-	  device->cfgracl = conf->devdefault->cfgracl;
-	
-	if(device->cfgsetacl == NULL && conf->devdefault != NULL)
-	  device->cfgsetacl = conf->devdefault->cfgsetacl;
-	
-	/* Logging target */
-	if(device->log == NULL && conf->devdefault != NULL)
-	  device->log = conf->devdefault->log;
-
-	/* If its still NULL, we assign the default log target */
-	if(device->log == NULL)
-	  device->log = referencelog("default",conf);
-	
-	/* If broadcast&writecache still doesnt have values we set them here */
-	if(device->writecache == -1)
-	  device->writecache = 1;
-	
-	if(device->broadcast == -1)
-	  device->broadcast = 1;
-     }
+     qaoed_devdefaults(conf,device);
    
    return(0);
 }

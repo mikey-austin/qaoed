@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS= -Wall -g -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LIBS = -lpthread
 
-all:    qaoed
+all:    qaoed qdctl
 
 OBJS  = devices.o network.o main.o logging.o acl.o parseconf.o api.o
 RCFGOBJS = rcfg/readconf.o
@@ -14,13 +14,14 @@ $(OBJS): $(INCLUDES)
 
 clean:
 	rm -f *.o *~ core qaoed include/*~ rcfg/*~ rcfg/*.o arch/*.o \
-	arch/*~ man/*~ examples/*~
+	arch/*~ man/*~ examples/*~ qdctl
 
 qaoed:	$(OBJS) $(RCFGOBJS) $(ARCHOBJS) $(INCLUDES)
 	make -C arch
 	make -C rcfg
-	gcc $(CFLAGS) -o qaoed $(OBJS) $(RCFGOBJS) $(ARCHOBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o qaoed $(OBJS) $(RCFGOBJS) $(ARCHOBJS) $(LIBS)
 	strip qaoed 
 
-
-
+qdctl: qdctl.c include/api.h
+	$(CC) $(CFLAGS) -o qdctl qdctl.c 
+	strip qdctl
