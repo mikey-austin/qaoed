@@ -138,3 +138,6 @@ int qaoed_pktdestroy(struct pkt *packet);
 void processpacket(struct qconfig *conf, struct ifst *ifentry, 
 		   struct pkt *Packet, struct aoe_hdr *aoepkt, int len);
 int arch_getsize(int fd, void *mediasize);
+int qaoed_startapi(struct qconfig *conf);
+void qaoed_devdefaults(struct qconfig *conf,struct aoedev *device);
+int qaoed_startdevice(struct aoedev *device);

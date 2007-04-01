@@ -40,6 +40,9 @@ int qaoed_startup(struct qconfig *conf)
    if(qaoed_network(conf) == -1)
      return(-1); 
    
+   /* Start the API */
+   qaoed_startapi(conf); 
+
    return(0);
 }
 
