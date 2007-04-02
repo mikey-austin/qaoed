@@ -191,6 +191,9 @@ void processpacket(struct qconfig *conf, struct ifst *ifentry,
     * get destroyed untill we are finished queueing it */
    work->refcount = 1;
    
+   /* Place a readlock on the device-list */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   
    /* Find the correct device for this packet */
    for(device = conf->devices; device != NULL; device = device->next)
      if(device->shelf == shelf && device->slot == slot)
@@ -241,6 +244,9 @@ void processpacket(struct qconfig *conf, struct ifst *ifentry,
 	  /* Unlock queue */
 	  pthread_mutex_unlock(&device->queuelock);
        } 
+
+   /* release readlock on the device-list */
+   pthread_rwlock_unlock(&conf->devlistlock);
    
    /* We are done with the work-struct so we try to destroy it */
    qaoed_workdestroy(work);

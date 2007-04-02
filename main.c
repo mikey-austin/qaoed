@@ -71,7 +71,7 @@ void qaoed_shutdown(struct qconfig *conf)
      if(pthread_cancel(device->threadID) != 0)
        logfunc(conf->log,LOG_ERR,"Failed to stop device thread for %s\n",
 	       device->devicename);
-      
+   
    /* Wait for all device threads to finish */
    for(ifent = conf->intlist; ifent != NULL; ifent = ifent->next)
      pthread_join(ifent->threadID,NULL);
