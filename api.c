@@ -33,6 +33,36 @@ int processSTATUSrequest(int conn,struct apihdr *api_hdr,void *arg)
   return(0); 
 }
 
+int processTARGET_DEL(struct qconfig *conf, int conn,
+		      struct apihdr *api_hdr, 
+		      struct qaoed_target_cmd *cmd)
+{
+   struct aoedev *device;
+
+   /* Search for matching device */
+   /* FIXME: what if more then one target matches the search??? */
+   for(device = conf->devices; device != NULL; device = device->next)
+     if((device->slot == cmd->slot  &&
+	 device->shelf == cmd->shelf))
+       {
+	  /* Unlink device from device-list */
+	  /* eh... */
+	  return(-1); /* Not done yet */
+	  
+	  if(pthread_cancel(device->threadID) != 0)
+	    {
+	       logfunc(conf->log,LOG_ERR,"Failed to stop device thread for %s\n",
+		       device->devicename);
+	       return(-1);
+	    }
+	  else
+	    return(0);
+       }
+      
+   return(-1);
+}
+
+
 int processTARGET_ADD(struct qconfig *conf, int conn, 
 		      struct apihdr *api_hdr, 
 		      struct qaoed_target_cmd *cmd)
@@ -145,13 +175,19 @@ int processTARGETrequest(struct qconfig *conf, int conn,
 	break;
 	
      case API_CMD_TARGETS_ADD:
-       printf("API_CMD_TARGETS_ADD -- processing\n");
+#ifdef DEBUG
+	printf("API_CMD_TARGETS_ADD -- processing\n");
+#endif
        if(processTARGET_ADD(conf, conn,api_hdr,cmd) == -1)
 	 api_hdr->error = API_FAILURE;
        break;
 	
       case API_CMD_TARGETS_DEL:
-	printf("API_CMD_TARGETS_DEL - no function \n");
+#ifdef DEBUG
+	printf("API_CMD_TARGETS_DEL -- processing \n");
+#endif
+	if(processTARGET_DEL(conf, conn,api_hdr,cmd) == -1)
+	 api_hdr->error = API_FAILURE;
 	break;
 	
       case API_CMD_TARGETS_SETOPTION:
