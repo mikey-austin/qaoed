@@ -9,7 +9,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 
-#define DEBUG 1
+/* #define DEBUG 1 */
 
 #include "include/qaoed.h"
 #include "include/logging.h"
@@ -120,8 +120,6 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
   printf("New device failed to start!\n");
   fflush(stdout);
 #endif
-
-
 
       return(-1);
     }
