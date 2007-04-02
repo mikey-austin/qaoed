@@ -124,17 +124,26 @@ return(NULL);
 struct aoedev * parseDEV(struct aoedev *devlist, struct cfg *c, 
 			 struct qconfig *conf)
 {
-  struct aoedev *dev = devlist;;
-
+   struct aoedev *dev = devlist;
+   struct aoedev *prev = NULL;
+   
   if(dev == NULL)
-    devlist = dev = (struct aoedev *) malloc(sizeof(struct aoedev));
-  else
-    { 
-      while(dev->next)
-	dev = dev->next;
-      
-      dev = dev->next = (struct aoedev *) malloc(sizeof(struct aoedev));
-    }
+     {
+	/* First entry */
+	devlist = dev = (struct aoedev *) malloc(sizeof(struct aoedev));
+	dev->prev = prev;
+     }
+   else
+     { 
+	while(dev->next)
+	  {
+	     prev = dev;
+	     dev = dev->next;
+	  }
+	
+	dev = dev->next = (struct aoedev *) malloc(sizeof(struct aoedev));
+	dev->prev = prev;
+     }
   
   /* default */
   dev->devicename = NULL;
@@ -830,7 +839,9 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
    conf->log = log;
    conf->sockpath = NULL; /* No API-socket by default */
    
-   
+   /* Initialize the read-write-lock for the device-list */
+   pthread_rwlock_init(&conf->devlistlock,NULL);
+
   while(c)
     {
       if(c->type == ASSIGNMENT)

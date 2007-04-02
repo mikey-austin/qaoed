@@ -38,28 +38,56 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct qaoed_target_cmd *cmd)
 {
    struct aoedev *device;
-
-   /* Search for matching device */
-   /* FIXME: what if more then one target matches the search??? */
+   int ret = 0;
+   int cnt = 0;
+   
+   /* Place a readlock on the device-list before searching */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   
+   /* Place a writelock on the device-list before modifying */
+   pthread_rwlock_wrlock(&conf->devlistlock);
+   
+   /* Make sure that we wont get more then one hit in the search */
    for(device = conf->devices; device != NULL; device = device->next)
      if((device->slot == cmd->slot  &&
 	 device->shelf == cmd->shelf))
-       {
-	  /* Unlink device from device-list */
-	  /* eh... */
-	  return(-1); /* Not done yet */
-	  
-	  if(pthread_cancel(device->threadID) != 0)
-	    {
-	       logfunc(conf->log,LOG_ERR,"Failed to stop device thread for %s\n",
-		       device->devicename);
-	       return(-1);
-	    }
-	  else
-	    return(0);
-       }
+       if(cmd->ifname[0] == 0 ||
+	  device->interface == referenceint(cmd->ifname,conf))
+	 cnt++;
+   
+   /* unlock the device-list */
+   if(cnt > 1)
+     {
+	/* More then one device matched the delete request */
+	pthread_rwlock_unlock(&conf->devlistlock);
+	return(-1);
+     }
       
-   return(-1);
+   /* Search for matching device */
+   for(device = conf->devices; device != NULL; device = device->next)
+     if((device->slot == cmd->slot  &&
+	 device->shelf == cmd->shelf))
+       if(cmd->ifname[0] == 0 ||
+	  device->interface == referenceint(cmd->ifname,conf))
+	 {
+	    /* Unlink device from device-list */
+	    device->prev->next = device->next;
+	    device->next->prev = device->prev;
+	    
+	    /* Try to stop thread */
+	    ret = pthread_cancel(device->threadID);
+	    
+	    if(ret == -1)
+	      logfunc(conf->log,
+		      LOG_ERR,
+		      "Failed to stop device thread for %s\n",
+		      device->devicename);
+	 }
+   
+   /* Unlock write lock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   return(ret);
 }
 
 
@@ -106,6 +134,9 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
   /* Assign default values from the default target */
   qaoed_devdefaults(conf,newdevice);
 
+   /* Read-lock */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   
   /* Make sure we dont set the same slot/shelf on multiple targets
    * unless they point to the same device and uses different interfaces */
   for(device = conf->devices; device != NULL; device = device->next)
@@ -117,19 +148,30 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
 	    /* Two devices can only share the same slot/shelf if 
 	     * they both point to the same target and are attached 
 	     * to different interfaces... */
-	    free(newdevice);
-	    return(-1);
+	     free(newdevice);
+	     /* Unlock before return */
+	     pthread_rwlock_unlock(&conf->devlistlock);
+	     return(-1);
 	  }
 
+   /* Unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
   /* Try to start our device */
   if(qaoed_startdevice(newdevice) == 0)
     {
-      /* Find end of device list */
-      for(device=conf->devices; device->next!=NULL; device=device->next);;
-      
-      /* Add our device */
-      device->next  = newdevice;
-      
+       /* Place a writelock on the device-list before modifying */
+       pthread_rwlock_wrlock(&conf->devlistlock);
+       
+       /* Find end of device list */
+       for(device=conf->devices; device->next!=NULL; device=device->next);;
+       
+       /* Add our device */
+       device->next  = newdevice;
+       
+       /* Unlock */
+       pthread_rwlock_unlock(&conf->devlistlock);
+       
 #ifdef DEBUG
       printf("New device sucessfully started!\n");
       fflush(stdout);

@@ -96,6 +96,7 @@ struct aoedev
    int cfg_len;               /* The cfg-data for this device */
    char cfg[1024];            /* The cfg-data for this device */
    struct aoedev *next;       /* Pointer to the next device */
+   struct aoedev *prev;       /* Pointer to the previus device */
 };
 
 
@@ -108,6 +109,7 @@ struct qconfig
    
    struct ifst   *intlist;      /* list of interfaces */
    struct aoedev *devdefault;  /* default values for devices */
+   pthread_rwlock_t devlistlock; /* RW lock used to access the device-list */
    struct aoedev *devices;     /* Linked list with devices */
    struct aclhdr *acllist;     /* Linked list with access-lists */
    struct logging *loglist;    /* linked list with logging targets */
