@@ -15,22 +15,41 @@
 #include "include/logging.h"
 #include "include/api.h"
 
-int processSTATUSrequest(int conn,struct apihdr *api_hdr,void *arg)
+/* Return some statistics about qaoed */
+int processSTATUSrequest(struct qconfig *conf, int conn,
+			 struct apihdr *api_hdr,void *arg)
 {
-  struct qaoed_status status;
-  
-  status.num_targets = 0;
-  status.num_interfaces = 0;
-  status.num_threads = 0;
-
-  api_hdr->type = REPLY;
-  api_hdr->error = API_ALLOK;
-  api_hdr->arg_len = sizeof(struct qaoed_status);
-
-  send(conn,api_hdr,sizeof(struct apihdr),0);
-  send(conn,&status,sizeof(struct qaoed_status),0);
-
-  return(0); 
+   struct qaoed_status status;
+   struct aoedev *device;
+   struct ifst *ifent;
+   
+   status.num_targets    = 0;
+   status.num_interfaces = 0;
+   status.num_threads    = 0;
+   
+   /* Place a readlock on the device-list before counting */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   /* Count the number of device threads */
+   for(device = conf->devices; device != NULL; device = device->next)
+     status.num_targets++;
+   /* unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   /* Count the number of interfaces */
+   for(ifent = conf->intlist; ifent != NULL; ifent = ifent->next)
+     status.num_interfaces++;
+   
+   /* Sum up the information */
+   status.num_threads = status.num_interfaces + status.num_targets + 2;
+   
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = sizeof(struct qaoed_status);
+   
+   send(conn,api_hdr,sizeof(struct apihdr),0);
+   send(conn,&status,sizeof(struct qaoed_status),0);
+   
+   return(0); 
 }
 
 int processTARGET_DEL(struct qconfig *conf, int conn,
@@ -40,9 +59,6 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    struct aoedev *device;
    int ret = 0;
    int cnt = 0;
-   
-   /* Place a readlock on the device-list before searching */
-   pthread_rwlock_rdlock(&conf->devlistlock);
    
    /* Place a writelock on the device-list before modifying */
    pthread_rwlock_wrlock(&conf->devlistlock);
@@ -71,8 +87,10 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 	  device->interface == referenceint(cmd->ifname,conf))
 	 {
 	    /* Unlink device from device-list */
-	    device->prev->next = device->next;
-	    device->next->prev = device->prev;
+	    if(device->prev != NULL)
+	      device->prev->next = device->next;
+	    if(device->next != NULL)
+	      device->next->prev = device->prev;
 	    
 	    /* Try to stop thread */
 	    ret = pthread_cancel(device->threadID);
@@ -119,6 +137,7 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
   else
     newdevice->interface = NULL;
   newdevice->next       = NULL;
+  newdevice->prev       = NULL;
   newdevice->log        = NULL;
   newdevice->fp         = NULL;
 
@@ -168,6 +187,7 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
        
        /* Add our device */
        device->next  = newdevice;
+       newdevice->prev = device;
        
        /* Unlock */
        pthread_rwlock_unlock(&conf->devlistlock);
@@ -265,7 +285,7 @@ int processAPIrequest(struct qconfig *conf, int conn,
      {
       case API_CMD_STATUS:
 	printf("API_CMD_STATUS\n");
-	processSTATUSrequest(conn,api_hdr,arg);
+	processSTATUSrequest(conf,conn,api_hdr,arg);
 	break;
 	
       case API_CMD_INTERFACES:
