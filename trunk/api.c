@@ -52,6 +52,65 @@ int processSTATUSrequest(struct qconfig *conf, int conn,
    return(0); 
 }
 
+/* Return information about targets */
+int processTARGET_LIST(struct qconfig *conf, int conn,
+		       struct apihdr *api_hdr, 
+		       struct qaoed_target_cmd *cmd)
+{
+   struct aoedev *device;
+   struct qaoed_target_cmd *tglist;
+   struct qaoed_target_cmd *tg;
+   int repsize = 0;
+   int cnt; 
+   
+   /* Place a readlock on the device-list before counting */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   /* Count the number of device threads */
+   for(device = conf->devices; device != NULL; device = device->next)
+     cnt++;
+   
+   repsize = cnt * sizeof(struct qaoed_target_cmd);
+   
+   tg = tglist = (struct qaoed_target_cmd *) malloc(repsize);
+   
+   if(tglist == NULL)
+     {
+	/* unlock */
+	pthread_rwlock_unlock(&conf->devlistlock);
+	return(-1);
+     }
+   
+   for(device = conf->devices; device != NULL; device = device->next)
+     {
+	/* Make sure we dont send more data then we have room for */
+	if(cnt-- <= 0)
+	  break;
+	
+	tg->shelf = device->shelf;
+	tg->slot = device->slot;
+	tg->broadcast = device->broadcast;
+	tg->writecache = device->writecache;
+	strcpy(tg->devicename, device->devicename);
+	strcpy(tg->ifname, device->interface->ifname);
+	
+	/* Move to the next */
+	tg++;
+     }
+   
+   
+   /* unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = repsize;
+   
+   send(conn,api_hdr,sizeof(struct apihdr),0);
+   send(conn,tglist, repsize,              0);
+   
+   return(0); 
+}
+
 int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr, 
 		      struct qaoed_target_cmd *cmd)
@@ -229,7 +288,9 @@ int processTARGETrequest(struct qconfig *conf, int conn,
    switch(api_hdr->cmd)
      {
       case API_CMD_TARGETS:
-	printf("API_CMD_TARGETS - no function ");
+	if(processTARGET_LIST(conf, conn,api_hdr,cmd) == -1)
+	  api_hdr->error = API_FAILURE;
+	printf("API_CMD_TARGETS - processing ");
 	break;
 	
       case API_CMD_TARGETS_STATUS:
