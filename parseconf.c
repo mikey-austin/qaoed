@@ -839,7 +839,7 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
    conf->syslog_facility = LOG_DAEMON;
    conf->log = log;
    conf->sockpath = NULL; /* No API-socket by default */
-   conf->aclnumplan = 0; /* Start numbering access-lists from zero */
+   conf->aclnumplan = 1; /* Start numbering access-lists from one (1) */
    
    /* Initialize the read-write-lock for the device-list */
    pthread_rwlock_init(&conf->devlistlock,NULL);
