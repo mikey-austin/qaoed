@@ -29,21 +29,21 @@ int processSTATUSreply(int sock,struct apihdr *api_hdr,void *arg)
 
 int processTARGETADDreply(int sock,struct apihdr *api_hdr,void *arg)
 {
-  struct qaoed_target_cmd *cmd = (struct qaoed_target_cmd *) arg;
+  struct qaoed_target_info *target = (struct qaoed_target_info *) arg;
   
   if(api_hdr->cmd == API_CMD_TARGET_ADD && 
-     api_hdr->arg_len == sizeof(struct qaoed_target_cmd))
+     api_hdr->arg_len == sizeof(struct qaoed_target_info))
     {
       if(api_hdr->error == API_ALLOK)
 	printf("Successfully added new target\n");
       else
 	printf("Failed to add new target\n");
-	  printf("Target: %s\n",cmd->devicename);
-	  printf("Shelf:  %d\n",cmd->shelf);
-	  printf("Slot:   %d\n",cmd->slot);
-	  printf("Interface: %s\n",cmd->ifname);
-	  printf("Broadcast: %d\n",cmd->broadcast);
-	  printf("Writecache: %d\n",cmd->writecache);
+	  printf("Target: %s\n",target->devicename);
+	  printf("Shelf:  %d\n",target->shelf);
+	  printf("Slot:   %d\n",target->slot);
+	  printf("Interface: %s\n",target->ifname);
+	  printf("Broadcast: %d\n",target->broadcast);
+	  printf("Writecache: %d\n",target->writecache);
     }
   else
     printf("Failed to understand reply from server\n");
@@ -226,28 +226,28 @@ int openapi()
 int add_target(int sock,char *device, int shelf, int slot, char *interface)
 {
   struct apihdr api_hdr;
-  struct qaoed_target_cmd cmd;
+  struct qaoed_target_info target;
   
   /* api header */
   api_hdr.cmd     = API_CMD_TARGET_ADD;  /* We want to add a target */
   api_hdr.type    = REQUEST;              /* This is a request */
   api_hdr.error   = API_ALLOK;            /* Everything is ok */
-  api_hdr.arg_len = sizeof(struct qaoed_target_cmd); 
+  api_hdr.arg_len = sizeof(struct qaoed_target_info);
   
   /* Fill out target data */
-  strcpy(cmd.devicename,device);
-  cmd.shelf      = shelf;
-  cmd.slot       = slot;
+  strcpy(target.devicename,device);
+  target.shelf      = shelf;
+  target.slot       = slot;
   if(interface != NULL)
-    strcpy(cmd.ifname,interface);
+    strcpy(target.ifname,interface);
   else
-    cmd.ifname[0] = 0;
-  cmd.writecache = -1;
-  cmd.broadcast = -1;
+    target.ifname[0] = 0;
+  target.writecache = -1;
+  target.broadcast = -1;
 
   /* Send request */
   send(sock,&api_hdr,sizeof(api_hdr),0);  
-  send(sock,&cmd,sizeof(cmd),0);  
+  send(sock,&target,sizeof(target),0);  
 
   recvreply(sock);
   

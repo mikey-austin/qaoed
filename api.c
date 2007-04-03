@@ -54,12 +54,11 @@ int processSTATUSrequest(struct qconfig *conf, int conn,
 
 /* Return information about targets */
 int processTARGET_LIST(struct qconfig *conf, int conn,
-		       struct apihdr *api_hdr, 
-		       struct qaoed_target_cmd *cmd)
+		       struct apihdr *api_hdr)
 {
    struct aoedev *device;
-   struct qaoed_target_cmd *tglist;
-   struct qaoed_target_cmd *tg;
+   struct qaoed_target_info *tglist;
+   struct qaoed_target_info *tg;
    int repsize = 0;
    int cnt; 
    
@@ -69,9 +68,9 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
    for(device = conf->devices; device != NULL; device = device->next)
      cnt++;
    
-   repsize = cnt * sizeof(struct qaoed_target_cmd);
+   repsize = cnt * sizeof(struct qaoed_target_info);
    
-   tg = tglist = (struct qaoed_target_cmd *) malloc(repsize);
+   tg = tglist = (struct qaoed_target_info *) malloc(repsize);
    
    if(tglist == NULL)
      {
@@ -113,7 +112,7 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
 
 int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr, 
-		      struct qaoed_target_cmd *cmd)
+		      struct qaoed_target_info *target)
 {
    struct aoedev *device;
    int ret = 0;
@@ -124,10 +123,10 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    
    /* Make sure that we wont get more then one hit in the search */
    for(device = conf->devices; device != NULL; device = device->next)
-     if((device->slot == cmd->slot  &&
-	 device->shelf == cmd->shelf))
-       if(cmd->ifname[0] == 0 ||
-	  device->interface == referenceint(cmd->ifname,conf))
+     if((device->slot == target->slot  &&
+	 device->shelf == target->shelf))
+       if(target->ifname[0] == 0 ||
+	  device->interface == referenceint(target->ifname,conf))
 	 cnt++;
    
    /* unlock the device-list */
@@ -140,10 +139,10 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
       
    /* Search for matching device */
    for(device = conf->devices; device != NULL; device = device->next)
-     if((device->slot == cmd->slot  &&
-	 device->shelf == cmd->shelf))
-       if(cmd->ifname[0] == 0 ||
-	  device->interface == referenceint(cmd->ifname,conf))
+     if((device->slot == target->slot  &&
+	 device->shelf == target->shelf))
+       if(target->ifname[0] == 0 ||
+	  device->interface == referenceint(target->ifname,conf))
 	 {
 	    /* Unlink device from device-list */
 	    if(device->prev != NULL)
@@ -170,7 +169,7 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 
 int processTARGET_ADD(struct qconfig *conf, int conn, 
 		      struct apihdr *api_hdr, 
-		      struct qaoed_target_cmd *cmd)
+		      struct qaoed_target_info *target)
 {
   struct aoedev *device;
   struct aoedev *newdevice;
@@ -186,13 +185,13 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
   fflush(stdout);
 #endif
 
-  newdevice->devicename = strdup(cmd->devicename);
-  newdevice->shelf = cmd->shelf;
-  newdevice->slot = cmd->slot;
-  newdevice->broadcast = cmd->broadcast;
-  newdevice->writecache = cmd->writecache;
-  if(strlen(cmd->ifname) > 0)
-    newdevice->interface = referenceint(cmd->ifname,conf);
+  newdevice->devicename = strdup(target->devicename);
+  newdevice->shelf = target->shelf;
+  newdevice->slot = target->slot;
+  newdevice->broadcast = target->broadcast;
+  newdevice->writecache = target->writecache;
+  if(strlen(target->ifname) > 0)
+    newdevice->interface = referenceint(target->ifname,conf);
   else
     newdevice->interface = NULL;
   newdevice->next       = NULL;
@@ -256,12 +255,12 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
       fflush(stdout);
 #endif
       
-      cmd->shelf = newdevice->shelf;
-      cmd->slot = newdevice->slot;
-      cmd->broadcast = newdevice->broadcast;
-      cmd->writecache = newdevice->writecache;
-      strcpy(cmd->devicename, newdevice->devicename);
-      strcpy(cmd->ifname, newdevice->interface->ifname);
+      target->shelf = newdevice->shelf;
+      target->slot = newdevice->slot;
+      target->broadcast = newdevice->broadcast;
+      target->writecache = newdevice->writecache;
+      strcpy(target->devicename, newdevice->devicename);
+      strcpy(target->ifname, newdevice->interface->ifname);
 
       return(0);
     }
@@ -281,15 +280,15 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
 int processTARGETrequest(struct qconfig *conf, int conn,
 			 struct apihdr *api_hdr,void *arg)
 {
-  api_hdr->error = API_ALLOK;
+   api_hdr->error = API_ALLOK;
 
-  struct qaoed_target_cmd *cmd = (struct qaoed_target_cmd *) arg;
+   struct qaoed_target_info *target = (struct qaoed_target_info *) arg;
 
    switch(api_hdr->cmd)
      {
       case API_CMD_TARGET_LIST:
 	printf("API_CMD_TARGET_LIST - processing ");
-	if(processTARGET_LIST(conf, conn,api_hdr,cmd) == -1)
+	if(processTARGET_LIST(conf, conn,api_hdr) == -1)
 	  api_hdr->error = API_FAILURE;
 	break;
 	
@@ -301,7 +300,7 @@ int processTARGETrequest(struct qconfig *conf, int conn,
 #ifdef DEBUG
 	printf("API_CMD_TARGET_ADD -- processing\n");
 #endif
-       if(processTARGET_ADD(conf, conn,api_hdr,cmd) == -1)
+       if(processTARGET_ADD(conf, conn,api_hdr,target) == -1)
 	 api_hdr->error = API_FAILURE;
        break;
 	
@@ -309,7 +308,7 @@ int processTARGETrequest(struct qconfig *conf, int conn,
 #ifdef DEBUG
 	printf("API_CMD_TARGET_DEL -- processing \n");
 #endif
-	if(processTARGET_DEL(conf, conn,api_hdr,cmd) == -1)
+	if(processTARGET_DEL(conf, conn,api_hdr,target) == -1)
 	 api_hdr->error = API_FAILURE;
 	break;
 	
@@ -324,7 +323,7 @@ int processTARGETrequest(struct qconfig *conf, int conn,
      }
 
   api_hdr->type = REPLY;
-  api_hdr->arg_len = sizeof(struct qaoed_target_cmd);
+  api_hdr->arg_len = sizeof(struct qaoed_target_info);
   
   printf("api_hdr->error: %d\n",api_hdr->error);
   printf("api_hdr->cmd: %d\n",api_hdr->cmd);
@@ -332,7 +331,7 @@ int processTARGETrequest(struct qconfig *conf, int conn,
   printf("api_hdr->arg_len: %d\n",api_hdr->arg_len);
 
   send(conn, api_hdr, sizeof(struct apihdr)          , 0);
-  send(conn, cmd,     sizeof(struct qaoed_target_cmd), 0);
+  send(conn, target,  sizeof(struct qaoed_target_info), 0);
 
   return(0); 
 }
