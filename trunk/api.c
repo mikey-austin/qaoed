@@ -287,38 +287,38 @@ int processTARGETrequest(struct qconfig *conf, int conn,
 
    switch(api_hdr->cmd)
      {
-      case API_CMD_TARGETS:
+      case API_CMD_TARGET_LIST:
+	printf("API_CMD_TARGET_LIST - processing ");
 	if(processTARGET_LIST(conf, conn,api_hdr,cmd) == -1)
 	  api_hdr->error = API_FAILURE;
-	printf("API_CMD_TARGETS - processing ");
 	break;
 	
-      case API_CMD_TARGETS_STATUS:
-	printf("API_CMD_TARGETS_STATUS - no function \n");
+      case API_CMD_TARGET_STATUS:
+	printf("API_CMD_TARGET_STATUS - no function \n");
 	break;
 	
-     case API_CMD_TARGETS_ADD:
+     case API_CMD_TARGET_ADD:
 #ifdef DEBUG
-	printf("API_CMD_TARGETS_ADD -- processing\n");
+	printf("API_CMD_TARGET_ADD -- processing\n");
 #endif
        if(processTARGET_ADD(conf, conn,api_hdr,cmd) == -1)
 	 api_hdr->error = API_FAILURE;
        break;
 	
-      case API_CMD_TARGETS_DEL:
+      case API_CMD_TARGET_DEL:
 #ifdef DEBUG
-	printf("API_CMD_TARGETS_DEL -- processing \n");
+	printf("API_CMD_TARGET_DEL -- processing \n");
 #endif
 	if(processTARGET_DEL(conf, conn,api_hdr,cmd) == -1)
 	 api_hdr->error = API_FAILURE;
 	break;
 	
-      case API_CMD_TARGETS_SETOPTION:
-	printf("API_CMD_TARGETS_SETOPTION - no function \n");
+      case API_CMD_TARGET_SETOPTION:
+	printf("API_CMD_TARGET_SETOPTION - no function \n");
 	break;
 	
-      case API_CMD_TARGETS_SETACL:
-	printf("API_CMD_TARGETS_SETACL - no function \n");
+      case API_CMD_TARGET_SETACL:
+	printf("API_CMD_TARGET_SETACL - no function \n");
 	break;
 
      }
@@ -369,33 +369,33 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	printf("API_CMD_INTERFACES_SETMTU\n");
 	break;
 	
-      case API_CMD_TARGETS:
-	printf("API_CMD_TARGETS");
+      case API_CMD_TARGET_LIST:
+	printf("API_CMD_TARGET_LIST");
 	processTARGETrequest(conf,conn,api_hdr,arg);
 	break;
 	
-      case API_CMD_TARGETS_STATUS:
+      case API_CMD_TARGET_STATUS:
 	processTARGETrequest(conf, conn,api_hdr,arg);
-	printf("API_CMD_TARGETS_STATUS\n");
+	printf("API_CMD_TARGET_STATUS\n");
 	break;
 	
-      case API_CMD_TARGETS_ADD:
-	printf("API_CMD_TARGETS_ADD\n");
+      case API_CMD_TARGET_ADD:
+	printf("API_CMD_TARGET_ADD\n");
 	processTARGETrequest(conf,conn,api_hdr,arg);
 	break;
 	
-      case API_CMD_TARGETS_DEL:
-	printf("API_CMD_TARGETS_DEL\n");
+      case API_CMD_TARGET_DEL:
+	printf("API_CMD_TARGET_DEL\n");
 	processTARGETrequest(conf,conn,api_hdr,arg);
 	break;
 	
-      case API_CMD_TARGETS_SETOPTION:
-	printf("API_CMD_TARGETS_SETOPTION\n");
+      case API_CMD_TARGET_SETOPTION:
+	printf("API_CMD_TARGET_SETOPTION\n");
 	processTARGETrequest(conf,conn,api_hdr,arg);
 	break;
 	
-      case API_CMD_TARGETS_SETACL:
-	printf("API_CMD_TARGETS_SETACL\n");
+      case API_CMD_TARGET_SETACL:
+	printf("API_CMD_TARGET_SETACL\n");
 	break;
 	
       case API_CMD_ACL:

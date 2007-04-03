@@ -31,7 +31,7 @@ int processTARGETADDreply(int sock,struct apihdr *api_hdr,void *arg)
 {
   struct qaoed_target_cmd *cmd = (struct qaoed_target_cmd *) arg;
   
-  if(api_hdr->cmd == API_CMD_TARGETS_ADD && 
+  if(api_hdr->cmd == API_CMD_TARGET_ADD && 
      api_hdr->arg_len == sizeof(struct qaoed_target_cmd))
     {
       if(api_hdr->error == API_ALLOK)
@@ -64,20 +64,20 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       printf("API_CMD_INTERFACES\n");
       break;
 
-    case API_CMD_TARGETS:
-      printf("API_CMD_TARGETS - no function ");
+    case API_CMD_TARGET_LIST:
+      printf("API_CMD_TARGET_LIAST - no function ");
       break;
 
-    case API_CMD_TARGETS_STATUS:
-      printf("API_CMD_TARGETS_STATUS - no function \n");
+    case API_CMD_TARGET_STATUS:
+      printf("API_CMD_TARGET_STATUS - no function \n");
       break;
 
-    case API_CMD_TARGETS_ADD:
+    case API_CMD_TARGET_ADD:
       processTARGETADDreply(sock,api_hdr,arg);
       break;
 
-    case API_CMD_TARGETS_DEL:
-      printf("API_CMD_TARGETS_DEL - no function \n");
+    case API_CMD_TARGET_DEL:
+      printf("API_CMD_TARGET_DEL - no function \n");
       break;
 
     default:
@@ -229,7 +229,7 @@ int add_target(int sock,char *device, int shelf, int slot, char *interface)
   struct qaoed_target_cmd cmd;
   
   /* api header */
-  api_hdr.cmd     = API_CMD_TARGETS_ADD;  /* We want to add a target */
+  api_hdr.cmd     = API_CMD_TARGET_ADD;  /* We want to add a target */
   api_hdr.type    = REQUEST;              /* This is a request */
   api_hdr.error   = API_ALLOK;            /* Everything is ok */
   api_hdr.arg_len = sizeof(struct qaoed_target_cmd); 
@@ -258,9 +258,7 @@ int main(int argc, char **argv)
 {
   int sock;
   sock = openapi();
-  
-  
-
+    
   add_target(sock, "/tmp/data",0xffff,0xff,NULL);
 
   close(sock);
