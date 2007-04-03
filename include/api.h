@@ -7,12 +7,12 @@ enum {
      API_CMD_INTERFACES_ADD,
      API_CMD_INTERFACES_DEL,
      API_CMD_INTERFACES_SETMTU,
-     API_CMD_TARGETS,
-     API_CMD_TARGETS_STATUS,
-     API_CMD_TARGETS_ADD,
-     API_CMD_TARGETS_DEL,
-     API_CMD_TARGETS_SETOPTION,
-     API_CMD_TARGETS_SETACL,
+     API_CMD_TARGET_LIST,
+     API_CMD_TARGET_STATUS,
+     API_CMD_TARGET_ADD,
+     API_CMD_TARGET_DEL,
+     API_CMD_TARGET_SETOPTION,
+     API_CMD_TARGET_SETACL,
      API_CMD_ACL,
      API_CMD_ACL_STATUS,
      API_CMD_ACL_ADD,
@@ -72,5 +72,3 @@ struct qaoed_target_cmd
    int writecache;         /* Writecache on or off */
    int broadcast;          /* Broadcast on or off */
 };
-
-
