@@ -63,7 +63,7 @@ struct qaoed_interface_cmd
 };
 
 /* Used to request status and to add / remove targets */
-struct qaoed_target_cmd
+struct qaoed_target_info
 {
    char devicename[120];       /*  file/device name */
    unsigned short shelf;   /* 16 bit */
