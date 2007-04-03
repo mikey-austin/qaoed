@@ -113,7 +113,8 @@ struct qconfig
    struct aoedev *devices;     /* Linked list with devices */
    struct aclhdr *acllist;     /* Linked list with access-lists */
    struct logging *loglist;    /* linked list with logging targets */
-
+   
+   int aclnumplan;             /* Used to give unique numbers to access-lists */
    
    char *sockpath;            /* Path to unix socket for the API interface */
    pthread_t APIthreadID;     /* ThreadID of thread for the API interface */

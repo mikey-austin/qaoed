@@ -546,6 +546,7 @@ struct aclhdr * parseACL(struct aclhdr *acllist, struct cfg *c,
   acl->acl  = NULL;
   acl->log  = NULL;
   acl->defaultpolicy = ACL_ERROR;
+  acl->aclnum = conf->aclnumplan++;
 
   while(c)
      {
@@ -838,6 +839,7 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
    conf->syslog_facility = LOG_DAEMON;
    conf->log = log;
    conf->sockpath = NULL; /* No API-socket by default */
+   conf->aclnumplan = 0; /* Start numbering access-lists from zero */
    
    /* Initialize the read-write-lock for the device-list */
    pthread_rwlock_init(&conf->devlistlock,NULL);

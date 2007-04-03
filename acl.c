@@ -71,3 +71,21 @@ struct aclhdr *referenceacl(char *name, struct qconfig *conf)
    return(NULL);
 }
 
+
+/* Resolv an access-list from its (int) number to a pointer to an aclhdr */
+struct aclhdr *referenceaclint(int aclnum, struct qconfig *conf)
+{
+   struct aclhdr *acllist = conf->acllist;
+   
+   while(acllist)
+     {
+	if(aclnum == acllist->aclnum)
+	  return(acllist); 
+	acllist = acllist->next;
+     }
+   
+   logfunc(conf->log,LOG_ERR,
+	   "Error: Unknown access-list '%d' referenced.\n",aclnum);
+   return(NULL);
+}
+
