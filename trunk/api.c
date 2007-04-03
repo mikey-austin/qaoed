@@ -61,7 +61,7 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
    struct qaoed_target_info *tglist;
    struct qaoed_target_info *tg;
    int repsize = 0;
-   int cnt; 
+   int cnt = 0; 
    
    /* Place a readlock on the device-list before counting */
    pthread_rwlock_rdlock(&conf->devlistlock);
@@ -336,7 +336,7 @@ int processTARGETrequest(struct qconfig *conf, int conn,
    switch(api_hdr->cmd)
      {
       case API_CMD_TARGET_LIST:
-	printf("API_CMD_TARGET_LIST - processing ");
+	printf("API_CMD_TARGET_LIST - processing\n ");
 	if(processTARGET_LIST(conf, conn,api_hdr) == -1)
 	  api_hdr->error = API_FAILURE;
 	break;

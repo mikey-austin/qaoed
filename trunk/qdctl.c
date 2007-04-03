@@ -50,6 +50,42 @@ int processTARGETADDreply(int sock,struct apihdr *api_hdr,void *arg)
   return(0);
 }
 
+int processACLLISTreply(int sock,struct apihdr *api_hdr,void *arg)
+{
+   int cnt; 
+   struct qaoed_acl_info *aclinfo = (struct qaoed_acl_info *) arg;
+   
+   cnt = api_hdr->arg_len / sizeof(struct qaoed_acl_info);
+   
+   while(cnt--)
+     {
+	printf("acl -- %s\n",aclinfo->name);
+	aclinfo++;
+     }
+   
+   return(0);
+}
+
+int processTARGETLISTreply(int sock,struct apihdr *api_hdr,void *arg)
+{
+   int cnt; 
+   struct qaoed_target_info *target = (struct qaoed_target_info *) arg;
+   
+   cnt = api_hdr->arg_len / sizeof(struct qaoed_target_info);
+
+   printf("-- Device list\n");
+   
+   while(cnt--)
+     {
+	printf("file: %s    shelf: %d        slot: %d\n",target->devicename,
+	       target->shelf,target->slot);
+	target++;
+     }
+   
+   return(0);
+}
+
+
 int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
 {
 
@@ -65,7 +101,7 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       break;
 
     case API_CMD_TARGET_LIST:
-      printf("API_CMD_TARGET_LIAST - no function ");
+       processTARGETLISTreply(sock,api_hdr,arg);
       break;
 
     case API_CMD_TARGET_STATUS:
@@ -80,6 +116,10 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       printf("API_CMD_TARGET_DEL - no function \n");
       break;
 
+     case API_CMD_ACL_LIST:
+       processACLLISTreply(sock,api_hdr,arg);
+       break;
+       
     default:
       printf("Unknown cmd: %d\n",api_hdr->cmd);
     }
@@ -254,13 +294,52 @@ int add_target(int sock,char *device, int shelf, int slot, char *interface)
   return(0);
 }
 
+int list_acl(int sock)
+{
+  struct apihdr api_hdr;
+
+  /* api header */
+  api_hdr.cmd     = API_CMD_ACL_LIST;  /* We want to add a target */
+  api_hdr.type    = REQUEST;              /* This is a request */
+  api_hdr.error   = API_ALLOK;            /* Everything is ok */
+  api_hdr.arg_len = 0;
+
+   /* Send request */
+   send(sock,&api_hdr,sizeof(api_hdr),0);
+   recvreply(sock);
+   
+   return(0);
+}
+
+int list_targets(int sock)
+{
+  struct apihdr api_hdr;
+
+  /* api header */
+  api_hdr.cmd     = API_CMD_TARGET_LIST;  /* We want to add a target */
+  api_hdr.type    = REQUEST;              /* This is a request */
+  api_hdr.error   = API_ALLOK;            /* Everything is ok */
+  api_hdr.arg_len = 0;
+
+   /* Send request */
+   send(sock,&api_hdr,sizeof(api_hdr),0);
+   recvreply(sock);
+   
+   return(0);
+}
+
+
+
+
 int main(int argc, char **argv)
 {
-  int sock;
-  sock = openapi();
-    
-  add_target(sock, "/tmp/data",0xffff,0xff,NULL);
-
-  close(sock);
-  return(0);
+   int sock;
+   sock = openapi();
+   
+   list_acl(sock);
+   //   add_target(sock, "/tmp/data",0xffff,0xff,NULL);
+   list_targets(sock);
+   
+   close(sock);
+   return(0);
 }
