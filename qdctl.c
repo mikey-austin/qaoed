@@ -95,7 +95,7 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       processSTATUSreply(sock,api_hdr,arg);
       break;
 
-    case API_CMD_INTERFACES:
+    case API_CMD_INTERFACES_LIST:
       printf("recieved reply for: ");
       printf("API_CMD_INTERFACES\n");
       break;

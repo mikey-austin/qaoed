@@ -159,6 +159,55 @@ int processACL_LIST(struct qconfig *conf, int conn,
    return(0); 
 }
 
+/* Return a list of interfaces */
+/* FIXME: .. ehh.. all wrong */
+int processINT_LIST(struct qconfig *conf, int conn,
+		    struct apihdr *api_hdr)
+{
+   struct aclhdr *acllist;
+   struct qaoed_acl_info *aclinfo;
+   struct qaoed_acl_info *anfo;
+   int repsize = 0;
+   int cnt; 
+   
+   /* Count the number access-lists */
+   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+     cnt++;
+
+   /* Calc size and allocate memory */
+   repsize = cnt * sizeof(struct qaoed_acl_info);
+   anfo = aclinfo = (struct qaoed_acl_info *) malloc(repsize);
+   
+   if(aclinfo == NULL)
+	return(-1);
+   
+   /* Extract info */
+   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+     {
+	/* Make sure we dont send more data then we have room for */
+	if(cnt-- <= 0)
+	  break;
+	
+	anfo->aclnumber = acllist->aclnum;
+	anfo->defaultpolicy = acllist->defaultpolicy;
+	strcpy(anfo->name, acllist->name);
+	
+	/* Move to the next */
+	anfo++;
+     }
+   
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = repsize;
+   
+   /* Send it */
+   send(conn,api_hdr, sizeof(struct apihdr),0);
+   send(conn,aclinfo, repsize,              0);
+   
+   return(0); 
+}
+
 int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr, 
 		      struct qaoed_target_info *target)
@@ -166,6 +215,9 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    struct aoedev *device;
    int ret = 0;
    int cnt = 0;
+   
+   api_hdr->error = API_ALLOK;
+   api_hdr->type = REPLY;
    
    /* Place a writelock on the device-list before modifying */
    pthread_rwlock_wrlock(&conf->devlistlock);
@@ -183,6 +235,9 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
      {
 	/* More then one device matched the delete request */
 	pthread_rwlock_unlock(&conf->devlistlock);
+	api_hdr->error = API_FAILURE;
+	api_hdr->arg_len = 0;
+	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
 	return(-1);
      }
       
@@ -212,6 +267,14 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    /* Unlock write lock */
    pthread_rwlock_unlock(&conf->devlistlock);
    
+   if(ret == -1)
+     api_hdr->error = API_FAILURE;
+   else
+     api_hdr->error = API_ALLOK;
+
+   /* Send the reply to the client */
+   send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+   
    return(ret);
 }
 
@@ -222,12 +285,19 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
 {
   struct aoedev *device;
   struct aoedev *newdevice;
-  newdevice = (struct aoedev *) malloc(sizeof(struct aoedev));
-  
-  if(newdevice == NULL)
-    {
-      return(-1);
-    }
+
+   api_hdr->error = API_ALLOK;
+   api_hdr->type = REPLY;
+   
+   newdevice = (struct aoedev *) malloc(sizeof(struct aoedev));
+   
+   if(newdevice == NULL)
+     {
+	api_hdr->error = API_FAILURE;
+	api_hdr->arg_len = 0;
+	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+	return(-1);
+     }
 
 #ifdef DEBUG
   printf("Processing new device!\n");
@@ -310,8 +380,6 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
       target->writecache = newdevice->writecache;
       strcpy(target->devicename, newdevice->devicename);
       strcpy(target->ifname, newdevice->interface->ifname);
-
-      return(0);
     }
   else
     {
@@ -319,70 +387,15 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
   printf("New device failed to start!\n");
   fflush(stdout);
 #endif
-
-      return(-1);
+       api_hdr->error = API_FAILURE;
     }
-
-  return(0);
-}
-
-int processTARGETrequest(struct qconfig *conf, int conn,
-			 struct apihdr *api_hdr,void *arg)
-{
-   api_hdr->error = API_ALLOK;
-
-   struct qaoed_target_info *target = (struct qaoed_target_info *) arg;
-
-   switch(api_hdr->cmd)
-     {
-      case API_CMD_TARGET_LIST:
-	printf("API_CMD_TARGET_LIST - processing\n ");
-	if(processTARGET_LIST(conf, conn,api_hdr) == -1)
-	  api_hdr->error = API_FAILURE;
-	break;
-	
-      case API_CMD_TARGET_STATUS:
-	printf("API_CMD_TARGET_STATUS - no function \n");
-	break;
-	
-     case API_CMD_TARGET_ADD:
-#ifdef DEBUG
-	printf("API_CMD_TARGET_ADD -- processing\n");
-#endif
-       if(processTARGET_ADD(conf, conn,api_hdr,target) == -1)
-	 api_hdr->error = API_FAILURE;
-       break;
-	
-      case API_CMD_TARGET_DEL:
-#ifdef DEBUG
-	printf("API_CMD_TARGET_DEL -- processing \n");
-#endif
-	if(processTARGET_DEL(conf, conn,api_hdr,target) == -1)
-	 api_hdr->error = API_FAILURE;
-	break;
-	
-      case API_CMD_TARGET_SETOPTION:
-	printf("API_CMD_TARGET_SETOPTION - no function \n");
-	break;
-	
-      case API_CMD_TARGET_SETACL:
-	printf("API_CMD_TARGET_SETACL - no function \n");
-	break;
-
-     }
-
-  api_hdr->type = REPLY;
-  api_hdr->arg_len = sizeof(struct qaoed_target_info);
-  
-  printf("api_hdr->error: %d\n",api_hdr->error);
-  printf("api_hdr->cmd: %d\n",api_hdr->cmd);
-  printf("api_hdr->type: %d\n",api_hdr->type);
-  printf("api_hdr->arg_len: %d\n",api_hdr->arg_len);
-
-  send(conn, api_hdr, sizeof(struct apihdr)          , 0);
-  send(conn, target,  sizeof(struct qaoed_target_info), 0);
-
-  return(0); 
+   
+   /* Send back results */
+   api_hdr->arg_len = sizeof(struct qaoed_target_info);
+   send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+   send(conn, target,  sizeof(struct qaoed_target_info), 0);   
+   
+   return(0);
 }
 
 
@@ -393,72 +406,65 @@ int processAPIrequest(struct qconfig *conf, int conn,
    switch(api_hdr->cmd)
      {
       case API_CMD_STATUS:
-	printf("API_CMD_STATUS\n");
 	processSTATUSrequest(conf,conn,api_hdr,arg);
 	break;
 	
-      case API_CMD_INTERFACES:
-	printf("API_CMD_INTERFACES\n");
+      case API_CMD_INTERFACES_LIST:
+	processINT_LIST(conf, conn,api_hdr);
 	break; 
 	
       case API_CMD_INTERFACES_STATUS:
-	printf("API_CMD_INTERFACES_STATUS\n");
+	printf("API_CMD_INTERFACES_STATUS - not implemented yet\n");
 	break;
 	
       case API_CMD_INTERFACES_ADD:
-	printf("API_CMD_INTERFACES_ADD\n");
+	printf("API_CMD_INTERFACES_ADD - not implemented yet\n");
 	break;
 	
       case API_CMD_INTERFACES_DEL:
-	printf("API_CMD_INTERFACES_DEL\n");
+	printf("API_CMD_INTERFACES_DEL - not implemented yet\n");
 	break;
 	
       case API_CMD_INTERFACES_SETMTU:
-	printf("API_CMD_INTERFACES_SETMTU\n");
+	printf("API_CMD_INTERFACES_SETMTU - not implemented yet\n");
 	break;
 	
       case API_CMD_TARGET_LIST:
-	printf("API_CMD_TARGET_LIST");
-	processTARGETrequest(conf,conn,api_hdr,arg);
+	processTARGET_LIST(conf,conn,api_hdr);
 	break;
 	
       case API_CMD_TARGET_STATUS:
-	processTARGETrequest(conf, conn,api_hdr,arg);
-	printf("API_CMD_TARGET_STATUS\n");
+	printf("API_CMD_TARGET_STATUS - not implemented yet\n");
 	break;
 	
       case API_CMD_TARGET_ADD:
-	printf("API_CMD_TARGET_ADD\n");
-	processTARGETrequest(conf,conn,api_hdr,arg);
+	processTARGET_ADD(conf, conn,api_hdr,arg);
 	break;
 	
       case API_CMD_TARGET_DEL:
-	printf("API_CMD_TARGET_DEL\n");
-	processTARGETrequest(conf,conn,api_hdr,arg);
+	processTARGET_DEL(conf, conn,api_hdr,arg);
 	break;
 	
       case API_CMD_TARGET_SETOPTION:
-	printf("API_CMD_TARGET_SETOPTION\n");
-	processTARGETrequest(conf,conn,api_hdr,arg);
+	printf("API_CMD_TARGET_SETOPTION - not implemented yet\n");
 	break;
 	
       case API_CMD_TARGET_SETACL:
-	printf("API_CMD_TARGET_SETACL\n");
+	printf("API_CMD_TARGET_SETACL - not implemented yet\n");
 	break;
 	
       case API_CMD_ACL_LIST:
-	printf("API_CMD_ACL - Processing\n");
 	processACL_LIST(conf, conn,api_hdr);
 	break;
 	
       case API_CMD_ACL_STATUS:
-	printf("API_CMD_ACL_STATUS\n");
+	printf("API_CMD_ACL_STATUS - not implemented yet\n");
 	break;
       case API_CMD_ACL_ADD:
-	printf("API_CMD_ACL_ADD\n");
+	printf("API_CMD_ACL_ADD - not implemented yet\n");
 	break;
       case API_CMD_ACL_DEL:
-	printf("API_CMD_ACL_DEL\n");
+	printf("API_CMD_ACL_DEL - not implemented yet\n");
 	break;
 	
       default:
