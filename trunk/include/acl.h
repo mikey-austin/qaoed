@@ -9,7 +9,8 @@ struct aclentry {
 };
 
 struct aclhdr {
-  char *name;
+  char *name;        /* Name of this access-list */
+  int aclnum;        /* Uniq number identifying this access-list */
   unsigned char defaultpolicy;
   struct aclentry *acl;
   struct logging *log;

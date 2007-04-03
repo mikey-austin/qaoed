@@ -71,4 +71,10 @@ struct qaoed_target_info
    char ifname[20];        /* Name of interface */
    int writecache;         /* Writecache on or off */
    int broadcast;          /* Broadcast on or off */
+   
+   int wacl;             /* Access list used for write operations    */
+   int racl;             /* Access list used for read operations     */
+   int cfgsetacl;        /* Access list used for cfg set             */
+   int cfgracl;          /* Access list used for cfg read / discover */
+      
 };
