@@ -14,6 +14,7 @@
 #include "include/qaoed.h"
 #include "include/logging.h"
 #include "include/api.h"
+#include "include/acl.h"
 
 /* Return some statistics about qaoed */
 int processSTATUSrequest(struct qconfig *conf, int conn,
@@ -106,6 +107,54 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
    
    send(conn,api_hdr,sizeof(struct apihdr),0);
    send(conn,tglist, repsize,              0);
+   
+   return(0); 
+}
+
+/* Return a list of access-lists */
+int processACL_LIST(struct qconfig *conf, int conn,
+		    struct apihdr *api_hdr)
+{
+   struct aclhdr *acllist;
+   struct qaoed_acl_info *aclinfo;
+   struct qaoed_acl_info *anfo;
+   int repsize = 0;
+   int cnt; 
+   
+   /* Count the number access-lists */
+   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+     cnt++;
+
+   /* Calc size and allocate memory */
+   repsize = cnt * sizeof(struct qaoed_acl_info);
+   anfo = aclinfo = (struct qaoed_acl_info *) malloc(repsize);
+   
+   if(aclinfo == NULL)
+	return(-1);
+   
+   /* Extract info */
+   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+     {
+	/* Make sure we dont send more data then we have room for */
+	if(cnt-- <= 0)
+	  break;
+	
+	anfo->aclnumber = acllist->aclnum;
+	anfo->defaultpolicy = acllist->defaultpolicy;
+	strcpy(anfo->name, acllist->name);
+	
+	/* Move to the next */
+	anfo++;
+     }
+   
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = repsize;
+   
+   /* Send it */
+   send(conn,api_hdr, sizeof(struct apihdr),0);
+   send(conn,aclinfo, repsize,              0);
    
    return(0); 
 }
@@ -397,8 +446,9 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	printf("API_CMD_TARGET_SETACL\n");
 	break;
 	
-      case API_CMD_ACL:
-	printf("API_CMD_ACL\n");
+      case API_CMD_ACL_LIST:
+	printf("API_CMD_ACL - Processing\n");
+	processACL_LIST(conf, conn,api_hdr);
 	break;
 	
       case API_CMD_ACL_STATUS:

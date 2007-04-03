@@ -13,10 +13,14 @@ enum {
      API_CMD_TARGET_DEL,
      API_CMD_TARGET_SETOPTION,
      API_CMD_TARGET_SETACL,
-     API_CMD_ACL,
-     API_CMD_ACL_STATUS,
-     API_CMD_ACL_ADD,
-     API_CMD_ACL_DEL
+     API_CMD_ACL_LIST, /* List access-lists */
+     API_CMD_ACL_INFO, /* List entries in an access-list */
+     API_CMD_ACL_STATUS, /* Show counters for an access-list */
+     API_CMD_ACL_ADD,    /* Add an access-list */
+     API_CMD_ACL_ADDENTRY, /* Add an entry from an access-list */
+     API_CMD_ACL_DEL, /* Delete an access-list */
+     API_CMD_ACL_DELENTRY, /* Remove an entry from an access-list */
+     API_CMD_ACL_SETDFLT /* Set the default policy for an access-list */
 };
 
 enum {
@@ -77,4 +81,12 @@ struct qaoed_target_info
    int cfgsetacl;        /* Access list used for cfg set             */
    int cfgracl;          /* Access list used for cfg read / discover */
       
+};
+
+/* Used to list and to add / remove access-lists */
+struct qaoed_acl_info
+{
+   char name[120];       /* name of the access-list*/
+   int aclnumber;        /* Reference number */
+   int defaultpolicy;    /* Default policy for this access-list */
 };
