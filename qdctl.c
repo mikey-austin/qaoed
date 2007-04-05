@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -263,7 +264,17 @@ int openapi()
 
 }
 
-int add_target(int sock,char *device, int shelf, int slot, char *interface)
+
+
+int add_acl(int sock,int argc, char **argv)
+{
+   
+   
+   return(0);
+}
+
+
+int API_add_target(int sock,char *device, int shelf, int slot, char *interface)
 {
   struct apihdr api_hdr;
   struct qaoed_target_info target;
@@ -292,6 +303,87 @@ int add_target(int sock,char *device, int shelf, int slot, char *interface)
   recvreply(sock);
   
   return(0);
+}
+
+void add_target_usage()
+{
+   printf("add target <device> [shelf] [slot] [interface]\n");
+   return;
+}
+
+
+int add_target(int sock,int argc, char **argv)
+{
+   int shelf = 0xffff; /* Auto assign */
+   int slot = 0xff;  /* Auto assign */
+   char *p;
+   
+   /* This option requires at least 1 argument
+    * add <device> [shelf] [slot] [interface]
+    * The shelf, slot and interface options are optional */
+   
+   char *interface = NULL;
+   
+   if(argc < 2 || argc > 5)
+     {
+	add_target_usage();
+	return(0);
+     }
+      
+   /* User specified an interface */
+   if(argc > 4) 
+     interface = argv[4];
+   
+   /* User specified a slot */
+   if(argc > 3) 
+     {
+	/* Make sure slot is all digits */
+	p = argv[3];
+	while(*p)
+	  if(isdigit(*p) == 0) 
+	    {
+	       add_target_usage();
+	       return(0);
+	    }
+	else
+	  p++;
+	
+	slot = strtol(argv[3], (char **)NULL, 10);
+	if(slot < 0 || slot > 255)
+	  {
+	     add_target_usage();
+	     return(0);
+	  }
+     }
+       
+   
+   /* User specified a shelf */
+   if(argc > 2)
+     {
+	/* Make sure shelf is all digits */
+	p = argv[2];
+	while(*p)
+	  if(isdigit(*p) == 0) 
+	    {
+	       add_target_usage();
+	       return(0);
+	    }
+	else
+	  p++;
+	
+	shelf = strtol(argv[2], (char **)NULL, 10);
+	if(shelf < 0 || shelf > 65535)
+	  {
+	     add_target_usage();
+	     return(0);
+	  }
+     }
+          
+   
+   /* Add the requested target */
+   API_add_target(sock,argv[1],shelf,slot,interface);
+   
+   return(0);
 }
 
 int list_acl(int sock)
@@ -328,17 +420,140 @@ int list_targets(int sock)
    return(0);
 }
 
+void usage()
+{
+   printf("Usage: { add | show } \n");
+}
 
+void show_usage()
+{
+   printf("Usage: show { targets | interfaces | access-lists } \n");
+}
+
+void add_usage()
+{
+   printf("Usage: add { target | interface | access-list } \n");
+}
+
+void del(int argc, char **argv)
+{
+}
+
+void add(int sock, int argc, char **argv)
+{
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	add_usage();
+	return;
+     }
+   
+   /* Add target */
+   if(strncmp(argv[1],"tar",3) == 0)
+     {
+	add_target(sock,(argc - 1),argv+1);
+	return;
+     }	 
+   
+   /* add interface */
+   if(strncmp(argv[1],"int",3) == 0)
+     {
+	
+	return;
+     }	 
+   
+   /* add access-list */
+   if(strncmp(argv[1],"acl",3) == 0)
+     {
+	add_acl(sock,(argc - 1),argv+1);
+	return;
+     }	 
+
+   /* add access-list */
+   if(strncmp(argv[1],"acc",3) == 0)
+     {
+	add_acl(sock,(argc - 1),argv+1);
+	return;
+     }	 
+   
+   
+}
+
+void show(int sock, int argc, char **argv)
+{
+   
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	show_usage();
+	return;
+     }
+      
+   /* List targets */
+   if(strncmp(argv[1],"tar",3) == 0)
+     {
+	list_targets(sock);	
+	return;
+     }	 
+   
+   /* List interfaces */
+   if(strncmp(argv[1],"int",3) == 0)
+     {
+
+	return;
+     }	 
+   
+   /* List access-lists */
+   if(strncmp(argv[1],"acl",3) == 0)
+     {
+	list_acl(sock);
+	return;
+     }	 
+
+   /* List access-lists */
+   if(strncmp(argv[1],"acc",3) == 0)
+     {
+	list_acl(sock);
+	return;
+     }	 
+
+}
 
 
 int main(int argc, char **argv)
 {
    int sock;
-   sock = openapi();
+//   sock = openapi();
    
-   list_acl(sock);
+   
+   if(argc < 2)
+     {
+	usage();
+	exit(-1);
+     }
+   
+   if(strncmp(argv[1],"add",3) == 0)
+      {
+	 add(sock,(argc - 1),argv+1);
+	 return(0);
+      }
+      
+      if(strncmp(argv[1],"del",3) == 0)
+      {
+	 del((argc - 1),argv+1);
+	 return(0);
+      }
+        
+      if(strncmp(argv[1],"show",4) == 0)
+      {
+	 show(sock,(argc - 1),argv+1);
+	 return(0);
+      }	 
+   
+   
+
    //   add_target(sock, "/tmp/data",0xffff,0xff,NULL);
-   list_targets(sock);
+
    
    close(sock);
    return(0);
