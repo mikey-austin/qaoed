@@ -523,7 +523,7 @@ void show(int sock, int argc, char **argv)
 int main(int argc, char **argv)
 {
    int sock;
-//   sock = openapi();
+   sock = openapi();
    
    
    if(argc < 2)
