@@ -274,13 +274,17 @@ int add_acl(int sock,int argc, char **argv)
 }
 
 
-int API_add_target(int sock,char *device, int shelf, int slot, char *interface)
+int API_adddel_target(int sock,char *cmd,char *device, int shelf, 
+		      int slot, char *interface)
 {
   struct apihdr api_hdr;
   struct qaoed_target_info target;
   
   /* api header */
-  api_hdr.cmd     = API_CMD_TARGET_ADD;  /* We want to add a target */
+   if(strncmp(cmd,"remove",6) == 0)
+     api_hdr.cmd     = API_CMD_TARGET_DEL;  /* We want to remove a target */
+   else
+     api_hdr.cmd     = API_CMD_TARGET_ADD;  /* We want to add a target */
   api_hdr.type    = REQUEST;              /* This is a request */
   api_hdr.error   = API_ALLOK;            /* Everything is ok */
   api_hdr.arg_len = sizeof(struct qaoed_target_info);
@@ -305,14 +309,14 @@ int API_add_target(int sock,char *device, int shelf, int slot, char *interface)
   return(0);
 }
 
-void add_target_usage()
+void target_usage(char *cmd)
 {
-   printf("add target <device> [shelf] [slot] [interface]\n");
+   printf("%s target <device> [shelf] [slot] [interface]\n",cmd);
    return;
 }
 
 
-int add_target(int sock,int argc, char **argv)
+int adddel_target(int sock,char *cmd,int argc, char **argv)
 {
    int shelf = 0xffff; /* Auto assign */
    int slot = 0xff;  /* Auto assign */
@@ -326,7 +330,7 @@ int add_target(int sock,int argc, char **argv)
    
    if(argc < 2 || argc > 5)
      {
-	add_target_usage();
+	target_usage(cmd);
 	return(0);
      }
       
@@ -342,7 +346,7 @@ int add_target(int sock,int argc, char **argv)
 	while(*p)
 	  if(isdigit(*p) == 0) 
 	    {
-	       add_target_usage();
+	       target_usage(cmd);
 	       return(0);
 	    }
 	else
@@ -351,7 +355,7 @@ int add_target(int sock,int argc, char **argv)
 	slot = strtol(argv[3], (char **)NULL, 10);
 	if(slot < 0 || slot > 255)
 	  {
-	     add_target_usage();
+	     target_usage(cmd);
 	     return(0);
 	  }
      }
@@ -365,7 +369,7 @@ int add_target(int sock,int argc, char **argv)
 	while(*p)
 	  if(isdigit(*p) == 0) 
 	    {
-	       add_target_usage();
+	       target_usage(cmd);
 	       return(0);
 	    }
 	else
@@ -374,14 +378,14 @@ int add_target(int sock,int argc, char **argv)
 	shelf = strtol(argv[2], (char **)NULL, 10);
 	if(shelf < 0 || shelf > 65535)
 	  {
-	     add_target_usage();
+	     target_usage(cmd);
 	     return(0);
 	  }
      }
           
    
    /* Add the requested target */
-   API_add_target(sock,argv[1],shelf,slot,interface);
+   API_adddel_target(sock,cmd,argv[1],shelf,slot,interface);
    
    return(0);
 }
@@ -422,7 +426,7 @@ int list_targets(int sock)
 
 void usage()
 {
-   printf("Usage: { add | show } \n");
+   printf("Usage: { add | remove | show } \n");
 }
 
 void show_usage()
@@ -435,8 +439,44 @@ void add_usage()
    printf("Usage: add { target | interface | access-list } \n");
 }
 
-void del(int argc, char **argv)
+void del_usage()
 {
+   printf("Usage: remove { target | interface | access-list } \n");
+}
+
+void del(int sock, int argc, char **argv)
+{
+   
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	del_usage();
+	return;
+     }
+   
+   /* Add target */
+   if(strncmp(argv[1],"tar",3) == 0)
+     {
+	adddel_target(sock,"remove", (argc - 1),argv+1);
+	return;
+     }	 
+   
+   /* add interface */
+   if(strncmp(argv[1],"int",3) == 0)
+     {
+	
+	return;
+     }	 
+   
+   /* add access-list */
+   if((strncmp(argv[1],"acl",3) == 0) ||
+      (strncmp(argv[1],"acc",3) == 0))
+     {
+//	del_acl(sock,(argc - 1),argv+1);
+	return;
+     }	 
+
+
 }
 
 void add(int sock, int argc, char **argv)
@@ -451,7 +491,7 @@ void add(int sock, int argc, char **argv)
    /* Add target */
    if(strncmp(argv[1],"tar",3) == 0)
      {
-	add_target(sock,(argc - 1),argv+1);
+	adddel_target(sock,"add", (argc - 1),argv+1);
 	return;
      }	 
    
@@ -523,8 +563,6 @@ void show(int sock, int argc, char **argv)
 int main(int argc, char **argv)
 {
    int sock;
-   sock = openapi();
-   
    
    if(argc < 2)
      {
@@ -532,15 +570,17 @@ int main(int argc, char **argv)
 	exit(-1);
      }
    
+   sock = openapi();
+      
    if(strncmp(argv[1],"add",3) == 0)
       {
 	 add(sock,(argc - 1),argv+1);
 	 return(0);
       }
       
-      if(strncmp(argv[1],"del",3) == 0)
+      if(strncmp(argv[1],"remove",3) == 0)
       {
-	 del((argc - 1),argv+1);
+	 del(sock, (argc - 1),argv+1);
 	 return(0);
       }
         
