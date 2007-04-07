@@ -90,3 +90,11 @@ struct qaoed_acl_info
    int aclnumber;        /* Reference number */
    int defaultpolicy;    /* Default policy for this access-list */
 };
+
+/* Used to list and to add / remove interfaces*/
+struct qaoed_if_info
+{
+   char name[20];        /* name of the interface */
+   char hwaddr[6];        /* src-address to use when sending */
+   int mtu;               /* the Maximum Transfer Unit (MTU) of this int... */
+};

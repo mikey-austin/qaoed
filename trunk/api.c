@@ -160,40 +160,48 @@ int processACL_LIST(struct qconfig *conf, int conn,
 }
 
 /* Return a list of interfaces */
-/* FIXME: .. ehh.. all wrong */
 int processINT_LIST(struct qconfig *conf, int conn,
 		    struct apihdr *api_hdr)
 {
-   struct aclhdr *acllist;
-   struct qaoed_acl_info *aclinfo;
-   struct qaoed_acl_info *anfo;
+   struct ifst *iflist;
+   struct qaoed_if_info *ifinfo;
+   struct qaoed_if_info *ifinfolist;
    int repsize = 0;
    int cnt; 
    
    /* Count the number access-lists */
-   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+   for(iflist = conf->intlist; iflist != NULL; iflist = iflist->next)
      cnt++;
 
    /* Calc size and allocate memory */
-   repsize = cnt * sizeof(struct qaoed_acl_info);
-   anfo = aclinfo = (struct qaoed_acl_info *) malloc(repsize);
+   repsize = cnt * sizeof(struct qaoed_if_info);
+   ifinfo = ifinfolist = (struct qaoed_if_info *) malloc(repsize);
    
-   if(aclinfo == NULL)
+   if(ifinfo == NULL)
 	return(-1);
    
    /* Extract info */
-   for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
+   for(iflist = conf->intlist; iflist != NULL; iflist = iflist->next)
      {
 	/* Make sure we dont send more data then we have room for */
 	if(cnt-- <= 0)
 	  break;
 	
-	anfo->aclnumber = acllist->aclnum;
-	anfo->defaultpolicy = acllist->defaultpolicy;
-	strcpy(anfo->name, acllist->name);
+	ifinfo->mtu = iflist->mtu;
+	
+	if(iflist->ifname)
+	  strcpy(ifinfo->name, iflist->ifname);
+	else
+	  ifinfo->name[0] = 0; /* zt */
+	
+		
+	if(iflist->hwaddr)
+	  memcpy(ifinfo->hwaddr, iflist->hwaddr,6);
+	else
+	  memset(ifinfo->hwaddr,0,6);
 	
 	/* Move to the next */
-	anfo++;
+	ifinfo++;
      }
    
    /* Encode reply */
@@ -203,7 +211,7 @@ int processINT_LIST(struct qconfig *conf, int conn,
    
    /* Send it */
    send(conn,api_hdr, sizeof(struct apihdr),0);
-   send(conn,aclinfo, repsize,              0);
+   send(conn,ifinfolist, repsize,           0);
    
    return(0); 
 }
