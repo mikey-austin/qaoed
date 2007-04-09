@@ -226,6 +226,7 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    
    api_hdr->error = API_ALLOK;
    api_hdr->type = REPLY;
+   api_hdr->arg_len = 0;
    
    /* Place a writelock on the device-list before modifying */
    pthread_rwlock_wrlock(&conf->devlistlock);
@@ -249,6 +250,16 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 	return(-1);
      }
       
+   if(cnt == 0)
+     {
+       /* No matching device */
+	pthread_rwlock_unlock(&conf->devlistlock);
+	api_hdr->error = API_FAILURE;
+	api_hdr->arg_len = 0;
+	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+	return(-1);
+     }
+
    /* Search for matching device */
    for(device = conf->devices; device != NULL; device = device->next)
      if((device->slot == target->slot  &&
@@ -410,7 +421,6 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
 int processAPIrequest(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr,void *arg)
 {
-   printf("recieved request of type: ");
    switch(api_hdr->cmd)
      {
       case API_CMD_STATUS:

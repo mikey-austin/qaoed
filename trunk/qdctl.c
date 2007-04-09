@@ -74,12 +74,14 @@ int processTARGETLISTreply(int sock,struct apihdr *api_hdr,void *arg)
    
    cnt = api_hdr->arg_len / sizeof(struct qaoed_target_info);
 
-   printf("-- Device list\n");
+   printf("NAME                                 SHELF    SLOT     INTERFACE\n\n");
    
    while(cnt--)
      {
-	printf("file: %s    shelf: %d        slot: %d\n",target->devicename,
-	       target->shelf,target->slot);
+	printf("%-35s %6d  %6d    %10s\n",
+	       target->devicename,
+	       target->shelf,target->slot,
+	       target->ifname);
 	target++;
      }
    
@@ -114,7 +116,10 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       break;
 
     case API_CMD_TARGET_DEL:
-      printf("API_CMD_TARGET_DEL - no function \n");
+      if(api_hdr->error == API_ALLOK)
+	printf("Command completed successfully\n");
+      else
+	printf("Command failed\n");
       break;
 
      case API_CMD_ACL_LIST:
@@ -285,6 +290,7 @@ int API_adddel_target(int sock,char *cmd,char *device, int shelf,
      api_hdr.cmd     = API_CMD_TARGET_DEL;  /* We want to remove a target */
    else
      api_hdr.cmd     = API_CMD_TARGET_ADD;  /* We want to add a target */
+
   api_hdr.type    = REQUEST;              /* This is a request */
   api_hdr.error   = API_ALLOK;            /* Everything is ok */
   api_hdr.arg_len = sizeof(struct qaoed_target_info);
@@ -304,6 +310,7 @@ int API_adddel_target(int sock,char *cmd,char *device, int shelf,
   send(sock,&api_hdr,sizeof(api_hdr),0);  
   send(sock,&target,sizeof(target),0);  
 
+  /* Wait for reply */
   recvreply(sock);
   
   return(0);
@@ -454,25 +461,25 @@ void del(int sock, int argc, char **argv)
 	return;
      }
    
-   /* Add target */
+   /* del target */
    if(strncmp(argv[1],"tar",3) == 0)
      {
 	adddel_target(sock,"remove", (argc - 1),argv+1);
 	return;
      }	 
    
-   /* add interface */
+   /* del interface */
    if(strncmp(argv[1],"int",3) == 0)
      {
 	
 	return;
      }	 
    
-   /* add access-list */
+   /* del access-list */
    if((strncmp(argv[1],"acl",3) == 0) ||
       (strncmp(argv[1],"acc",3) == 0))
      {
-//	del_acl(sock,(argc - 1),argv+1);
+  //	del_acl(sock,(argc - 1),argv+1);
 	return;
      }	 
 
@@ -539,7 +546,6 @@ void show(int sock, int argc, char **argv)
    /* List interfaces */
    if(strncmp(argv[1],"int",3) == 0)
      {
-
 	return;
      }	 
    
@@ -589,11 +595,6 @@ int main(int argc, char **argv)
 	 show(sock,(argc - 1),argv+1);
 	 return(0);
       }	 
-   
-   
-
-   //   add_target(sock, "/tmp/data",0xffff,0xff,NULL);
-
    
    close(sock);
    return(0);
