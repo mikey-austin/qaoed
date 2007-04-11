@@ -67,6 +67,32 @@ int processACLLISTreply(int sock,struct apihdr *api_hdr,void *arg)
    return(0);
 }
 
+int processINTLISTreply(int sock,struct apihdr *api_hdr,void *arg)
+{
+   int cnt; 
+   struct qaoed_if_info *ifinfo = (struct qaoed_if_info *) arg;
+   
+   cnt = api_hdr->arg_len / sizeof(struct qaoed_if_info);
+   
+   printf("NAME             HWADDR            MTU\n\n");
+   
+   while(cnt--)
+     {
+	printf("%-10s %02X:%02X:%02X:%02X:%02X:%02X     %d\n",
+	       ifinfo->name,
+	       ifinfo->hwaddr[0],
+	       ifinfo->hwaddr[1],
+	       ifinfo->hwaddr[2],
+	       ifinfo->hwaddr[3],
+	       ifinfo->hwaddr[4],
+	       ifinfo->hwaddr[5],
+	       ifinfo->mtu);
+	ifinfo++;
+     }
+   
+   return(0);
+}
+
 int processTARGETLISTreply(int sock,struct apihdr *api_hdr,void *arg)
 {
    int cnt; 
@@ -98,9 +124,8 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       processSTATUSreply(sock,api_hdr,arg);
       break;
 
-    case API_CMD_INTERFACES_LIST:
-      printf("recieved reply for: ");
-      printf("API_CMD_INTERFACES\n");
+     case API_CMD_INTERFACES_LIST:
+       processINTLISTreply(sock,api_hdr,arg);
       break;
 
     case API_CMD_TARGET_LIST:
