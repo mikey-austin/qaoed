@@ -111,6 +111,100 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
    return(0); 
 }
 
+/* Return detailed info about a specific target */
+int processTARGET_DETAILS(struct qconfig *conf, int conn,
+			  struct apihdr *api_hdr, 
+			  struct qaoed_target_info *target)
+{
+   struct aoedev *device;
+   struct qaoed_target_info_detailed *tg;
+   
+   /* Place a readlock on the device-list before counting */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+
+   /* Allocate memory to hold target information */
+   tg = (struct qaoed_target_info_detailed *) 
+     malloc(sizeof(struct qaoed_target_info_detailed));
+   
+   if(tg == NULL)
+     {
+       /* unlock */
+       pthread_rwlock_unlock(&conf->devlistlock);
+       return(-1);
+     }
+   
+
+   /* Search for matching device */
+   for(device = conf->devices; device != NULL; device = device->next)
+     if((device->slot == target->slot  &&
+	 device->shelf == target->shelf))
+       if(target->ifname[0] == 0 ||
+	  device->interface == referenceint(target->ifname,conf))
+	 {
+	   /* Zero struct */
+	   memset(tg,0,sizeof(struct qaoed_target_info_detailed));
+
+	   tg->info.shelf = device->shelf;
+	   tg->info.slot = device->slot;
+	   tg->info.broadcast = device->broadcast;
+	   tg->info.writecache = device->writecache;
+	   strcpy(tg->info.devicename, device->devicename);
+	   strcpy(tg->info.ifname, device->interface->ifname);
+
+	   
+	   /* Access list used for write operations    */
+	   if(device->wacl != NULL)
+	     strncpy(tg->wacl,device->wacl->name,
+		     sizeof(tg->wacl) - 1);
+
+	   /* Access list used for read operations     */
+	   if(device->racl != NULL)
+	     strncpy(tg->racl,device->racl->name,
+		     sizeof(tg->racl) - 1);
+
+	   /* Access list used for cfg set             */
+	   if(device->cfgsetacl != NULL)
+	     strncpy(tg->cfgsetacl,device->cfgsetacl->name,
+		     sizeof(tg->cfgsetacl) - 1);
+	   
+	   /* Access list used for cfg read / discover */
+	   if(device->cfgracl != NULL)
+	     strncpy(tg->cfgracl,device->cfgracl->name,
+		     sizeof(tg->cfgracl) - 1);
+
+	   /* Accounting data */
+	   /* ... */
+
+	   /* Logging target */
+	   if(device->log != NULL)
+	     strncpy(tg->log,device->log->name,
+		     sizeof(tg->log) - 1);
+
+	   /* Loglevel for this device */
+	   tg->log_level = device->log_level;
+
+	   /* The cfg-data lenght */
+	   tg->cfg_len = device->cfg_len;
+
+	   /* The cfg-data for this device */
+	   memcpy(tg->cfg,device->cfg,sizeof(tg->cfg));
+
+	 }
+   
+   /* unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = sizeof(struct qaoed_target_info_detailed);
+   
+   send(conn,api_hdr, sizeof(struct apihdr),                     0);
+   send(conn,tg,      sizeof(struct qaoed_target_info_detailed), 0);
+   
+   return(0); 
+}
+
+
 /* Return a list of access-lists */
 int processACL_LIST(struct qconfig *conf, int conn,
 		    struct apihdr *api_hdr)
@@ -269,18 +363,40 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 	 {
 	    /* Unlink device from device-list */
 	    if(device->prev != NULL)
-	      device->prev->next = device->next;
+	      {
+		device->prev->next = device->next;
+	      }
+	    else
+	      {
+		/* First device */
+		conf->devices = device->next;
+	      }
+
 	    if(device->next != NULL)
-	      device->next->prev = device->prev;
-	    
+	      {
+		device->next->prev = device->prev;
+	      }
+	  
+#ifdef DEBUG
+	    printf("Stopping thread for device  %s\n",
+		   device->devicename);
+#endif
+  
 	    /* Try to stop thread */
 	    ret = pthread_cancel(device->threadID);
 	    
 	    if(ret == -1)
-	      logfunc(conf->log,
-		      LOG_ERR,
-		      "Failed to stop device thread for %s\n",
-		      device->devicename);
+	      {
+#ifdef DEBUG
+		printf("Failed to stop device thread for %s\n",
+		       device->devicename);
+#endif
+		
+		logfunc(conf->log,
+			LOG_ERR,
+			"Failed to stop device thread for %s\n",
+			device->devicename);
+	      }
 	 }
    
    /* Unlock write lock */
@@ -354,20 +470,21 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
    
   /* Make sure we dont set the same slot/shelf on multiple targets
    * unless they point to the same device and uses different interfaces */
-  for(device = conf->devices; device != NULL; device = device->next)
+   if(conf->devices != NULL)
+      for(device = conf->devices; device != NULL; device = device->next)
       if((device->slot == newdevice->slot  &&
 	  device->shelf == newdevice->shelf))
-	if((device->interface == newdevice->interface) ||
-	   (strcmp(device->devicename,newdevice->devicename) != 0))
-	  {
-	    /* Two devices can only share the same slot/shelf if 
-	     * they both point to the same target and are attached 
-	     * to different interfaces... */
-	     free(newdevice);
-	     /* Unlock before return */
-	     pthread_rwlock_unlock(&conf->devlistlock);
-	     return(-1);
-	  }
+      if((device->interface == newdevice->interface) ||
+	 (strcmp(device->devicename,newdevice->devicename) != 0))
+       {
+	 /* Two devices can only share the same slot/shelf if 
+	  * they both point to the same target and are attached 
+	  * to different interfaces... */
+	 free(newdevice);
+	 /* Unlock before return */
+	 pthread_rwlock_unlock(&conf->devlistlock);
+	 return(-1);
+       }
 
    /* Unlock */
    pthread_rwlock_unlock(&conf->devlistlock);
@@ -379,11 +496,16 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
        pthread_rwlock_wrlock(&conf->devlistlock);
        
        /* Find end of device list */
-       for(device=conf->devices; device->next!=NULL; device=device->next);;
-       
-       /* Add our device */
-       device->next  = newdevice;
-       newdevice->prev = device;
+       if(conf->devices != NULL)
+	 {
+	   for(device=conf->devices; device->next!=NULL; device=device->next);;
+	   
+	   /* Add our device */
+	   device->next  = newdevice;
+	   newdevice->prev = device;
+	 }
+       else
+	 conf->devices = newdevice;
        
        /* Unlock */
        pthread_rwlock_unlock(&conf->devlistlock);
@@ -456,10 +578,16 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	break;
 	
       case API_CMD_TARGET_ADD:
+#ifdef DEBUG
+	printf("processTARGET_ADD(conf, conn,api_hdr,arg);\n");
+#endif
 	processTARGET_ADD(conf, conn,api_hdr,arg);
 	break;
 	
       case API_CMD_TARGET_DEL:
+#ifdef DEBUG
+	printf("processTARGET_DEL(conf, conn,api_hdr,arg)\n");
+#endif
 	processTARGET_DEL(conf, conn,api_hdr,arg);
 	break;
 	
