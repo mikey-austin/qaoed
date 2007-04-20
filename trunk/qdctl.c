@@ -12,6 +12,8 @@
 
 #define SOCK_PATH "/tmp/qaoedsocket"
 
+/* #define DEBUG 1 */
+
 int processSTATUSreply(int sock,struct apihdr *api_hdr,void *arg)
 {
   struct qaoed_status *status = (struct qaoed_status *) arg;
@@ -74,11 +76,11 @@ int processINTLISTreply(int sock,struct apihdr *api_hdr,void *arg)
    
    cnt = api_hdr->arg_len / sizeof(struct qaoed_if_info);
    
-   printf("NAME             HWADDR            MTU\n\n");
-   
+   printf("INTERFACE                   HWADDR      MTU\n\n");
+
    while(cnt--)
      {
-	printf("%-10s %02X:%02X:%02X:%02X:%02X:%02X     %d\n",
+	printf("%-10s       %02X:%02X:%02X:%02X:%02X:%02X     %d\n",
 	       ifinfo->name,
 	       ifinfo->hwaddr[0],
 	       ifinfo->hwaddr[1],
@@ -124,14 +126,6 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       processSTATUSreply(sock,api_hdr,arg);
       break;
 
-     case API_CMD_INTERFACES_LIST:
-       processINTLISTreply(sock,api_hdr,arg);
-      break;
-
-    case API_CMD_TARGET_LIST:
-       processTARGETLISTreply(sock,api_hdr,arg);
-      break;
-
     case API_CMD_TARGET_STATUS:
       printf("API_CMD_TARGET_STATUS - no function \n");
       break;
@@ -141,82 +135,148 @@ int processAPIreply(int sock,struct apihdr *api_hdr,void *arg)
       break;
 
     case API_CMD_TARGET_DEL:
-      if(api_hdr->error == API_ALLOK)
-	printf("Command completed successfully\n");
-      else
-	printf("Command failed\n");
-      break;
-
-     case API_CMD_ACL_LIST:
-       processACLLISTreply(sock,api_hdr,arg);
+       if(api_hdr->error == API_ALLOK)
+	 printf("Command completed successfully\n");
+       else
+	 printf("Command failed\n");
        break;
        
-    default:
-      printf("Unknown cmd: %d\n",api_hdr->cmd);
+     default:
+       printf("Unknown cmd: %d\n",api_hdr->cmd);
     }
 
   return(0);
 }
 
-int recvreply(int sock)
+struct apihdr * readreply(int sock)
 {
-  struct apihdr api_hdr;
-  void *arg;
-  int n;
-
-  /* Read api_hdr */
-  n = recv(sock, &api_hdr, sizeof(struct apihdr),0);
-
-   /* Make sure we got data of the correct size */
+   struct apihdr api_hdr;
+   struct apihdr *arg;
+   int n;
+   
+   /* Read the api_hdr */
+   n = recv(sock, &api_hdr, sizeof(struct apihdr),0);
+   
    if (n != sizeof(struct apihdr))
      {
-       if(n > 0)
-	 printf("Wrong size for api_hdr: %d\n",n);
-       
-       close(sock);
-       return(-1);
+	if(n > 0)     
+	  printf("Wrong size for api_hdr: %d\n",n);
+	else
+	  printf("Error recieving api_hdr: %s\n",strerror(errno));
+	
+	close(sock);
+	exit(-1);
      }
-
-   if(api_hdr.error != API_ALLOK)
+   
+   if(api_hdr.arg_len < 2048)
+     arg = (struct apihdr *) malloc(api_hdr.arg_len + sizeof(struct apihdr));
+   else
+     arg = (struct apihdr *) malloc(sizeof(struct apihdr));
+   
+   if(arg == NULL)
      {
-       printf("error!\n");
-       fflush(stdout);
+	printf("Memory allocation error: %s\n",strerror(errno));
+	close(sock);
+	exit(-1);
      }
 
-   /* Is there more data ? */
-   if(api_hdr.arg_len > 0)
+   /* Copy hdr */
+   memcpy(arg,&api_hdr,sizeof(struct apihdr));
+   
+   if(api_hdr.arg_len > 2048)
      {
-       /* If its way out of proportions we close the socket */
-       if(api_hdr.arg_len > 2048)
-	 {
-	   printf("argument lenght has bogus value: %d\n",
-		  api_hdr.arg_len);
-	   close(sock);
-	   return(-1);
-	 }
-       
-       /* Allocate memory to hold options */
-       arg = (char *) malloc(api_hdr.arg_len);
-       if(arg == NULL)
-	 {
-	   perror("malloc");
-	   close(sock);
-	   return(-1);
-	 }
+	printf("argument lenght has bogus value: %d\n",
+	       api_hdr.arg_len);
+	close(sock);
+	exit(-1);
+     }
+   
+   /* Read in argument data */
+   n = recv(sock, arg->data, api_hdr.arg_len,0);
+   
+   /* Make sure we got data of the right size */
+   if (n != api_hdr.arg_len)
+     {
+	printf("Bogus lenght recieved from socket: %d\n",n);
+	close(sock);
+	exit(-1);
+     }
+   
+   return(arg);
+   
+}
 
-       /* Read option arguments */
-       n = recv(sock, arg, api_hdr.arg_len,0);
-       
-       /* Make sure we got data of the right size */
-       if (n != api_hdr.arg_len)
-	 {
-	   printf("Bogus lenght recieved from socket: %d\n",n);
-	   close(sock);
-	   return(-1);
-	 }
+  
+int recvshowreply(int sock)
+{
+   struct apihdr *api_hdr;
+   
+   /* Read reply from socket */
+   api_hdr = readreply( sock);
+   
+   if(api_hdr == NULL)
+     {
+	printf("Failed to read reply from socket!\n");
+	fflush(stdout);
+	exit(-1);
+     }
+      
+   if(api_hdr->error != API_ALLOK)
+     {
+	printf("Command failed\n");
+	fflush(stdout);
+	free(api_hdr);
+	return(-1);
      }
 
-   processAPIreply(sock,&api_hdr,arg);
+   switch(api_hdr->cmd)
+     {
+	
+      case API_CMD_INTERFACES_LIST:
+	processINTLISTreply(sock,api_hdr,api_hdr->data);
+	break;
+	
+      case API_CMD_TARGET_LIST:
+	processTARGETLISTreply(sock,api_hdr,api_hdr->data);
+	break;
+	
+      case API_CMD_ACL_LIST:
+	processACLLISTreply(sock,api_hdr,api_hdr->data);
+	break;
+	
+      default:
+	printf("Unknown reply from server!\n");
+	break;
+     }
+   
+   free(api_hdr);
+   return(0);
+}
+
+
+int recvcmdreply(int sock)
+{
+   struct apihdr *api_hdr;
+   
+   /* Read reply from socket */
+   api_hdr = readreply( sock);
+   
+   if(api_hdr == NULL)
+     {
+	printf("Failed to read reply from socket!\n");
+	fflush(stdout);
+	exit(-1);
+     }
+   
+   if(api_hdr->error != API_ALLOK)
+     {
+	printf("Command failed!\n");
+	fflush(stdout);
+     }
+   else
+     processAPIreply(sock,api_hdr,api_hdr->data);
+   
+   free(api_hdr);   
    return 0;
 }
 
@@ -328,15 +388,21 @@ int API_adddel_target(int sock,char *cmd,char *device, int shelf,
     strcpy(target.ifname,interface);
   else
     target.ifname[0] = 0;
+   
+   /* Use default values */
   target.writecache = -1;
   target.broadcast = -1;
 
+#ifdef DEBUG
+  printf("Sending %s request\n",cmd);
+#endif
+  
   /* Send request */
   send(sock,&api_hdr,sizeof(api_hdr),0);  
   send(sock,&target,sizeof(target),0);  
 
   /* Wait for reply */
-  recvreply(sock);
+  recvcmdreply(sock);
   
   return(0);
 }
@@ -354,9 +420,10 @@ int adddel_target(int sock,char *cmd,int argc, char **argv)
    int slot = 0xff;  /* Auto assign */
    char *p;
    
-   /* This option requires at least 1 argument
-    * add <device> [shelf] [slot] [interface]
-    * The shelf, slot and interface options are optional */
+   /* This option requires at least 4 argument
+    * add     <device> [shelf] [slot] [interface]
+    * remove  <device> <shelf> <slot> <interface>
+    * The shelf, slot and interface options are optional for add */
    
    char *interface = NULL;
    
@@ -422,36 +489,21 @@ int adddel_target(int sock,char *cmd,int argc, char **argv)
    return(0);
 }
 
-int list_acl(int sock)
+int list(int sock, int cmd)
 {
   struct apihdr api_hdr;
 
   /* api header */
-  api_hdr.cmd     = API_CMD_ACL_LIST;  /* We want to add a target */
+  api_hdr.cmd     = cmd;                  /* cmd to send */
   api_hdr.type    = REQUEST;              /* This is a request */
   api_hdr.error   = API_ALLOK;            /* Everything is ok */
   api_hdr.arg_len = 0;
 
    /* Send request */
    send(sock,&api_hdr,sizeof(api_hdr),0);
-   recvreply(sock);
    
-   return(0);
-}
-
-int list_targets(int sock)
-{
-  struct apihdr api_hdr;
-
-  /* api header */
-  api_hdr.cmd     = API_CMD_TARGET_LIST;  /* We want to add a target */
-  api_hdr.type    = REQUEST;              /* This is a request */
-  api_hdr.error   = API_ALLOK;            /* Everything is ok */
-  api_hdr.arg_len = 0;
-
-   /* Send request */
-   send(sock,&api_hdr,sizeof(api_hdr),0);
-   recvreply(sock);
+   /* Wait for reply */
+   recvshowreply(sock);
    
    return(0);
 }
@@ -463,7 +515,7 @@ void usage()
 
 void show_usage()
 {
-   printf("Usage: show { targets | interfaces | access-lists } \n");
+   printf("Usage: show { status | targets | interfaces | access-lists } \n");
 }
 
 void add_usage()
@@ -508,7 +560,8 @@ void del(int sock, int argc, char **argv)
 	return;
      }	 
 
-
+   del_usage();
+   return;
 }
 
 void add(int sock, int argc, char **argv)
@@ -548,7 +601,37 @@ void add(int sock, int argc, char **argv)
 	return;
      }	 
    
+   /* Ehh */
+   add_usage();
+   return;
    
+}
+
+void status(int sock)
+{
+
+  struct apihdr api_hdr;
+  struct apihdr *reply;
+
+  /* api header */
+  api_hdr.cmd     = API_CMD_STATUS;       /* Request qaoed status */
+  api_hdr.type    = REQUEST;              /* This is a request */
+  api_hdr.error   = API_ALLOK;            /* Everything is ok */
+  api_hdr.arg_len = 0;
+
+   /* Send request */
+   send(sock,&api_hdr,sizeof(api_hdr),0);
+   
+   /* Read reply from socket */
+   reply = readreply(sock);
+   
+   if(reply != NULL)
+     {
+       processSTATUSreply(sock,reply,reply->data);
+       free(reply);
+     }
+   
+   return;
 }
 
 void show(int sock, int argc, char **argv)
@@ -560,34 +643,40 @@ void show(int sock, int argc, char **argv)
 	show_usage();
 	return;
      }
-      
+   
+   /* Show qaoed status */
+   if(strncmp(argv[1],"sta",3) == 0)
+     {
+       status(sock);
+       return;
+     }	 
+
    /* List targets */
    if(strncmp(argv[1],"tar",3) == 0)
      {
-	list_targets(sock);	
+	list(sock,API_CMD_TARGET_LIST);
 	return;
      }	 
    
    /* List interfaces */
    if(strncmp(argv[1],"int",3) == 0)
      {
+	list(sock,API_CMD_INTERFACES_LIST);
 	return;
      }	 
    
    /* List access-lists */
-   if(strncmp(argv[1],"acl",3) == 0)
+   if((strncmp(argv[1],"acl",3) == 0) ||
+      (strncmp(argv[1],"acc",3) == 0))
      {
-	list_acl(sock);
+	list(sock,API_CMD_ACL_LIST);
 	return;
      }	 
-
-   /* List access-lists */
-   if(strncmp(argv[1],"acc",3) == 0)
-     {
-	list_acl(sock);
-	return;
-     }	 
-
+   
+   /* Ehh.. ? */
+   show_usage();
+   return;   
+   
 }
 
 
@@ -621,6 +710,7 @@ int main(int argc, char **argv)
 	 return(0);
       }	 
    
-   close(sock);
-   return(0);
+      usage();
+      close(sock);
+      return(0);
 }

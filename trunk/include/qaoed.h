@@ -81,10 +81,10 @@ struct aoedev
    int writecache;         /* Writecache on or off */
    int broadcast;          /* Broadcast on or off */
    
-   void *wacl;             /* Access list used for write operations    */
-   void *racl;             /* Access list used for read operations     */
-   void *cfgsetacl;        /* Access list used for cfg set             */
-   void *cfgracl;          /* Access list used for cfg read / discover */
+   struct aclhdr *wacl;       /* Access list used for write operations    */
+   struct aclhdr *racl;       /* Access list used for read operations     */
+   struct aclhdr *cfgsetacl;  /* Access list used for cfg set             */
+   struct aclhdr *cfgracl;    /* Access list used for cfg read / discover */
    
    pthread_cond_t qcv;        /* Tell thread something is in the queue */
    pthread_mutex_t queuelock; /* Lock used to access this queue */

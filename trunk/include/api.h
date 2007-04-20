@@ -41,6 +41,7 @@ struct apihdr
    unsigned char type; /* Request == 0, Reply == 1; */
    unsigned char error; /* OK == 0 */
    unsigned int  arg_len; /* Lenght of additional argument buffer */
+   char          data[0];  /* Argument */
 };
 
 /* qaoed status struct, describes current status of qaoed */
@@ -75,12 +76,31 @@ struct qaoed_target_info
    char ifname[20];        /* Name of interface */
    int writecache;         /* Writecache on or off */
    int broadcast;          /* Broadcast on or off */
+     
+};
+
+struct qaoed_target_info_detailed
+{
+  /* Basic info */
+  struct qaoed_target_info info;
    
-   int wacl;             /* Access list used for write operations    */
-   int racl;             /* Access list used for read operations     */
-   int cfgsetacl;        /* Access list used for cfg set             */
-   int cfgracl;          /* Access list used for cfg read / discover */
-      
+  /* Access-lists */
+  char wacl[20];             /* Access list used for write operations    */
+  char racl[20];             /* Access list used for read operations     */
+  char cfgsetacl[20];        /* Access list used for cfg set             */
+  char cfgracl[20];          /* Access list used for cfg read / discover */
+
+  /* Accounting data */
+  /* ... */
+
+  /* Logging info  */
+  char log[20];              /* Logging target */
+  int log_level;             /* Loglevel for this device */
+
+  /* Cfg */
+  int cfg_len;               /* The cfg-data for this device */
+  char cfg[1024];            /* The cfg-data for this device */
+
 };
 
 /* Used to list and to add / remove access-lists */
