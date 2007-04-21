@@ -111,6 +111,13 @@ struct qaoed_acl_info
    int defaultpolicy;    /* Default policy for this access-list */
 };
 
+/* Use to list / add / remove rows from access-lists */
+struct qaoed_acl_entry 
+{
+  unsigned char rule;
+  unsigned char h_dest[6];
+};
+
 /* Used to list and to add / remove interfaces*/
 struct qaoed_if_info
 {

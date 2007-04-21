@@ -213,7 +213,7 @@ int processACL_LIST(struct qconfig *conf, int conn,
    struct qaoed_acl_info *aclinfo;
    struct qaoed_acl_info *anfo;
    int repsize = 0;
-   int cnt; 
+   int cnt = 0; 
    
    /* Count the number access-lists */
    for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
@@ -253,6 +253,73 @@ int processACL_LIST(struct qconfig *conf, int conn,
    return(0); 
 }
 
+/* Return information on a specific access-list */
+int processACL_STATUS(struct qconfig *conf, int conn,
+		      struct apihdr *api_hdr,
+		      struct qaoed_acl_info *reqacl)
+{
+  
+  struct aclhdr *acl;
+  struct aclentry *entry;
+  struct qaoed_acl_entry *aclinfo;
+  struct qaoed_acl_entry *anfo;
+  int repsize = 0;
+  int cnt = 0; 
+
+  /* Encode reply */
+  api_hdr->type = REPLY;
+  api_hdr->error = API_ALLOK;
+  api_hdr->arg_len = 0;  
+  
+  /* Find the correct access-list */
+  for(acl = conf->acllist; acl != NULL; acl = acl->next)
+    if(strcmp(acl->name,reqacl->name))
+      break;
+  
+   if(acl == NULL)
+     {
+       /* Error */
+       api_hdr->error = API_FAILURE;
+       send(conn,api_hdr, sizeof(struct apihdr),0);
+       return(0);
+     }
+
+   /* Count the number of rows  */
+   for(entry = acl->acl; entry != NULL; entry = entry->next)
+     cnt++;
+
+   /* Calc size and allocate memory */
+   repsize = cnt * sizeof(struct qaoed_acl_entry);
+   anfo = aclinfo = (struct qaoed_acl_entry *) malloc(repsize);
+   
+   if(aclinfo == NULL)
+	return(-1);
+   
+   /* Extract info */
+   for(entry = acl->acl; entry != NULL; entry = entry->next)
+     {
+	/* Make sure we dont send more data then we have room for */
+	if(cnt-- <= 0)
+	  break;
+	
+	anfo->rule = entry->rule;
+	memcpy(anfo->h_dest, entry->h_dest,6);
+	
+	/* Move to the next */
+	anfo++;
+     }
+   
+   /* Update argument size */
+   api_hdr->arg_len = repsize;
+   
+   /* Send it */
+   send(conn,api_hdr, sizeof(struct apihdr),0);
+   send(conn,aclinfo, repsize,              0);
+   
+   return(0); 
+}
+
+
 /* Return a list of interfaces */
 int processINT_LIST(struct qconfig *conf, int conn,
 		    struct apihdr *api_hdr)
@@ -261,9 +328,9 @@ int processINT_LIST(struct qconfig *conf, int conn,
    struct qaoed_if_info *ifinfo;
    struct qaoed_if_info *ifinfolist;
    int repsize = 0;
-   int cnt; 
+   int cnt = 0; 
    
-   /* Count the number access-lists */
+   /* Count the number of interfaces */
    for(iflist = conf->intlist; iflist != NULL; iflist = iflist->next)
      cnt++;
 
