@@ -705,6 +705,8 @@ int qaoed_startworker(struct aoedev *device)
    pthread_attr_init(&atr);
    pthread_attr_setdetachstate(&atr, PTHREAD_CREATE_JOINABLE);
    
+   /* Upp the refcounter for the interface */
+   qaoed_intrefup(device->interface);
    
    /* Start the worker thread */
    if(pthread_create (&device->threadID,&atr,
@@ -712,6 +714,7 @@ int qaoed_startworker(struct aoedev *device)
 		      (void *)device) != 0)
      {
 	pthread_mutex_destroy(&device->queuelock);
+	qaoed_intrefdown(device->interface);
 	return(-1);
      }
    
