@@ -117,7 +117,7 @@ void qaoed_workdestroy(struct workentry *work)
    return;
 }
 
-void processpacket(struct qconfig *conf, struct ifst *ifentry, 
+void processpacket(struct qconfig *conf, struct ifst *ifentry,
 		   struct pkt *Packet, struct aoe_hdr *aoepkt, int len)
 {
    struct aoedev *device;
@@ -343,5 +343,21 @@ int qaoed_xmit(struct workentry *work, void *pkt, int pkt_len )
    free(pkt);
    return (ret);
 }
+
+void qaoed_intrefup(struct ifst *interface)
+{
+   pthread_mutex_lock(&interface->iflock);
+   interface->refcnt++;
+   pthread_mutex_unlock(&interface->iflock);
+}
+
+
+void qaoed_intrefdown(struct ifst *interface)
+{
+   pthread_mutex_lock(&interface->iflock);
+   interface->refcnt--;
+   pthread_mutex_unlock(&interface->iflock);
+}
+
 
 

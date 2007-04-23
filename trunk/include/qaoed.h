@@ -59,6 +59,8 @@ struct ifst
    int buffsize;           /* Buffer size to use when reading from socket */
    struct logging *log;    /* Pointer to the logging target for this int... */
    int log_level;          /* The log-level of this interface */
+   int refcnt;             /* Reference counter */
+   pthread_mutex_t iflock; /* Lock used when modifying this interface struct */
    struct ifst *next;
 };
 
@@ -144,3 +146,5 @@ int arch_getsize(int fd, void *mediasize);
 int qaoed_startapi(struct qconfig *conf);
 void qaoed_devdefaults(struct qconfig *conf,struct aoedev *device);
 int qaoed_startdevice(struct aoedev *device);
+void qaoed_intrefup(struct ifst *interface);
+void qaoed_intrefdown(struct ifst *interface);

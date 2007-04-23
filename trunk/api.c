@@ -377,6 +377,65 @@ int processINT_LIST(struct qconfig *conf, int conn,
    return(0); 
 }
 
+int processINTERFACE_ADD(struct qconfig *conf, int conn,
+			 struct apihdr *api_hdr,
+			 struct qaoed_interface_cmd *ifcmd)
+{
+   
+   
+   return(0);
+}
+
+int processINTERFACE_DEL(struct qconfig *conf, int conn,
+			 struct apihdr *api_hdr,
+			 struct qaoed_interface_cmd *ifcmd)
+{
+   
+   return(0);
+}
+
+int processINTERFACE_SETMTU(struct qconfig *conf, int conn,
+			    struct apihdr *api_hdr,
+			    struct qaoed_interface_cmd *ifcmd)
+{
+   struct ifst *interface;
+
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = sizeof(struct qaoed_interface_cmd);   
+   
+   /* Try to lookup interface */
+   interface = referenceint(ifcmd->ifname,conf);
+   
+   if(interface == NULL)
+     api_hdr->error = API_FAILURE;
+   else
+     {
+	/* Set MTU */
+	
+	/* Make sure mtu value isnt higher then the MTU-value of the int */
+	if(ifcmd->mtu > getifmtu(interface))
+	  api_hdr->error = API_FAILURE;
+	else
+	  interface->mtu = ifcmd->mtu; /* actually set the MTU value */
+	
+	/* FIXME: Should we rebroadcast all devices attached to this
+	 * interface to update the maxsect value? */
+		
+	/* Transfer interface info to ifcmd-reply */
+	strcpy(ifcmd->ifname,interface->ifname);
+	ifcmd->mtu = interface->mtu;
+     }
+   
+   /* Send reply */
+   send(conn,api_hdr, sizeof(struct apihdr),              0);
+   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), 0);   
+      
+   return(0);
+}
+  
+
 int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr, 
 		      struct qaoed_target_info *target)
@@ -472,8 +531,14 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
    if(ret == -1)
      api_hdr->error = API_FAILURE;
    else
-     api_hdr->error = API_ALLOK;
-
+     {
+	/* Command succeeded */
+	api_hdr->error = API_ALLOK;
+	
+	/* Remove reference from interface */
+	qaoed_intrefdown(device->interface);
+     }
+   
    /* Send the reply to the client */
    send(conn, api_hdr, sizeof(struct apihdr)          , 0);
    
