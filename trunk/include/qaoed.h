@@ -62,6 +62,7 @@ struct ifst
    int refcnt;             /* Reference counter */
    pthread_mutex_t iflock; /* Lock used when modifying this interface struct */
    struct ifst *next;
+   struct ifst *prev;
 };
 
 
@@ -109,6 +110,7 @@ struct qconfig
    int syslog_facility;        
    int syslog_level;
    
+   pthread_rwlock_t intlistlock; /* RW lock used to access the interface-list */
    struct ifst   *intlist;      /* list of interfaces */
    struct aoedev *devdefault;  /* default values for devices */
    pthread_rwlock_t devlistlock; /* RW lock used to access the device-list */

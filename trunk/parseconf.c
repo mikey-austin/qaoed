@@ -125,24 +125,22 @@ struct aoedev * parseDEV(struct aoedev *devlist, struct cfg *c,
 			 struct qconfig *conf)
 {
    struct aoedev *dev = devlist;
-   struct aoedev *prev = NULL;
    
   if(dev == NULL)
      {
 	/* First entry */
 	devlist = dev = (struct aoedev *) malloc(sizeof(struct aoedev));
-	dev->prev = prev;
+	dev->prev = NULL;;
      }
    else
      { 
 	while(dev->next)
-	  {
-	     prev = dev;
-	     dev = dev->next;
-	  }
-	
-	dev = dev->next = (struct aoedev *) malloc(sizeof(struct aoedev));
-	dev->prev = prev;
+	  dev = dev->next;
+
+	dev->next = (struct aoedev *) malloc(sizeof(struct aoedev));
+	dev->next->prev = dev;
+	dev->next->next = NULL;
+	dev = dev->next;
      }
   
   /* default */
@@ -664,13 +662,21 @@ struct ifst *parseINT(struct ifst *iflist, struct cfg *c,
   struct ifst *ifentry = iflist;
 
   if(ifentry == NULL)
-    iflist = ifentry = (struct ifst *) malloc(sizeof(struct ifst));
+    {
+      /* First entry */
+      iflist = ifentry = (struct ifst *) malloc(sizeof(struct ifst));
+      ifentry->prev = NULL;
+    }
   else
     { 
       while(ifentry->next)
 	ifentry = ifentry->next;
       
-      ifentry = ifentry->next = (struct ifst *) malloc(sizeof(struct ifst));
+      /* Add entry to linked list */
+      ifentry->next = (struct ifst *) malloc(sizeof(struct ifst));
+      ifentry->next->prev = ifentry;
+      ifentry->next->next = NULL;
+      ifentry = ifentry->next;
     }
   
    /* Set the default logging level */
@@ -843,6 +849,9 @@ struct qconfig *readglobal(struct cfg *c, struct logging *log)
    
    /* Initialize the read-write-lock for the device-list */
    pthread_rwlock_init(&conf->devlistlock,NULL);
+   
+   /* Initialize the read-write-lock for the interface-list */
+   pthread_rwlock_init(&conf->intlistlock,NULL);
 
   while(c)
     {

@@ -35,10 +35,14 @@ int processSTATUSrequest(struct qconfig *conf, int conn,
      status.num_targets++;
    /* unlock */
    pthread_rwlock_unlock(&conf->devlistlock);
-   
+      
+   /* Place a readlock on the int-list before counting */
+   pthread_rwlock_rdlock(&conf->devlistlock);
    /* Count the number of interfaces */
    for(ifent = conf->intlist; ifent != NULL; ifent = ifent->next)
      status.num_interfaces++;
+   /* unlock */
+   pthread_rwlock_unlock(&conf->intlistlock);
    
    /* Sum up the information */
    status.num_threads = status.num_interfaces + status.num_targets + 2;
@@ -330,6 +334,9 @@ int processINT_LIST(struct qconfig *conf, int conn,
    int repsize = 0;
    int cnt = 0; 
    
+   /* Place a readlock on the device-list before counting */
+   pthread_rwlock_rdlock(&conf->intlistlock);
+
    /* Count the number of interfaces */
    for(iflist = conf->intlist; iflist != NULL; iflist = iflist->next)
      cnt++;
@@ -339,8 +346,12 @@ int processINT_LIST(struct qconfig *conf, int conn,
    ifinfo = ifinfolist = (struct qaoed_if_info *) malloc(repsize);
    
    if(ifinfo == NULL)
-	return(-1);
-   
+     {
+       /* FIXME: add logging of this error */
+       pthread_rwlock_unlock(&conf->intlistlock);
+       return(-1);
+     }   
+
    /* Extract info */
    for(iflist = conf->intlist; iflist != NULL; iflist = iflist->next)
      {
@@ -374,6 +385,9 @@ int processINT_LIST(struct qconfig *conf, int conn,
    send(conn,api_hdr, sizeof(struct apihdr),0);
    send(conn,ifinfolist, repsize,           0);
    
+   /* Unlock interface list */
+   pthread_rwlock_unlock(&conf->intlistlock);
+
    return(0); 
 }
 
@@ -381,15 +395,67 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
 			 struct apihdr *api_hdr,
 			 struct qaoed_interface_cmd *ifcmd)
 {
-   
-   
-   return(0);
+  
+  
+  
+  return(0);
 }
 
 int processINTERFACE_DEL(struct qconfig *conf, int conn,
 			 struct apihdr *api_hdr,
 			 struct qaoed_interface_cmd *ifcmd)
 {
+   struct ifst *ifent;
+
+   if(conf->intlist == NULL)
+     return(-1);
+   
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_FAILURE; /* Default is failure */
+   api_hdr->arg_len = sizeof(struct qaoed_interface_cmd);   
+   
+   /* Place a writelock on the device-list before modifying */
+   pthread_rwlock_wrlock(&conf->devlistlock);
+   
+   /* Make sure that the interface we are going to delete exists 
+    * and that it isnt referenced */
+   for(ifent = conf->intlist; ifent != NULL; ifent = ifent->next)
+     if(strcmp(ifent->ifname,ifcmd->ifname))
+       {
+	  pthread_mutex_lock(&ifent->iflock);
+	  
+	  if(ifent->refcnt < 1)
+	    {
+	      /* Try to shutdown interface && 
+		* Wait for thread to finish */
+	       if(pthread_cancel(ifent->threadID) == 0 &&
+		  pthread_join(ifent->threadID,NULL) == 0)
+		 {
+		   /* Unlink from interface list */
+		   if(ifent->prev != NULL)
+		     ifent->prev->next = ifent->next;
+		   else
+		     conf->intlist = ifent->next; /* First device */
+		   
+		   if(ifent->next != NULL)
+		     ifent->next->prev = ifent->prev;
+		   
+		   /* Interface successfully removed! */
+		   api_hdr->error = API_ALLOK; /* Success */
+		 }
+	       else
+		 api_hdr->error = API_FAILURE; /* Failure */
+	    }
+	  pthread_mutex_unlock(&ifent->iflock);
+       }
+
+   /* Unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   /* Send reply */
+   send(conn,api_hdr, sizeof(struct apihdr),              0);
+   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), 0);   
    
    return(0);
 }
