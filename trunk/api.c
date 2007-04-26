@@ -395,10 +395,111 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
 			 struct apihdr *api_hdr,
 			 struct qaoed_interface_cmd *ifcmd)
 {
+   struct ifst *newif;
+   struct ifst *ifent;
+   int cnt = 0;
+   
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_FAILURE; /* Default is failure */
+   api_hdr->arg_len = 0;
+   
+   /* Place a readlock on the device-list before accessing */
+   pthread_rwlock_rdlock(&conf->devlistlock);
+   
+   /* Make sure that the interface doesnt already exist */
+   for(ifent = conf->intlist; ifent != NULL; ifent = ifent->next)
+     if(strcmp(ifent->ifname,ifcmd->ifname))
+       cnt++;
   
-  
-  
-  return(0);
+   /* Unlock */
+   pthread_rwlock_unlock(&conf->devlistlock);
+   
+   /* If interface already exists we cant add it again ... */
+   if(cnt > 0)
+     {
+	/* Command failed */
+	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	return(-1);
+     }
+   
+   
+   /* Allocate memory */
+   newif  = (struct ifst *) malloc(sizeof(struct ifst));
+   
+   if(newif == NULL)
+     {
+	/* Memory allocation failed */
+	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	return(-1);
+     }
+      
+   /* Default values */
+   newif->prev = NULL;
+   newif->next = NULL;
+   
+   /* Set the default logging level */
+   newif->log_level = conf->log_level;
+   
+   /* Set the default MTU to 1500 */
+   /* FIXME - We should use MTU-value from ifcmd */
+   newif->mtu = 1500;
+   
+   /* Set the default logging target */
+   newif->log = referencelog("default",conf);
+   
+   /* Add the interface name */
+   newif->ifname = strdup(ifcmd->ifname);
+   
+   if(qaoed_opensock(newif) != 0)
+     {
+	/* close it, just in case */
+	if(newif->sock != -1)
+	  close(newif->sock);
+
+	/* Failed to open interface */
+	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	return(-1);
+     }
+      
+   if(qaoed_startlistener(conf,newif) != 0)
+     {
+	if(newif->sock != -1)
+	  close(newif->sock);
+
+	/* Failed to start network thread  */
+	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	return(-1);
+     }
+
+   
+   /* Network thread successfully started */
+   
+   /* Find end of interface list and add our new interface */
+   if(conf->intlist != NULL)
+     {
+	for(ifent=conf->intlist; ifent->next!=NULL; ifent=ifent->next);;
+	
+	/* Add our device */
+	ifent->next  = newif;
+	newif->prev = ifent;
+     }
+   else
+     conf->intlist = newif;
+     
+   /* Update reply header */
+   api_hdr->error = API_ALLOK; /* Success */
+   api_hdr->arg_len = sizeof(struct qaoed_interface_cmd);   
+   
+   /* Transfer interface info to ifcmd-reply */
+   strcpy(ifcmd->ifname,newif->ifname);
+   ifcmd->mtu = newif->mtu;
+   
+   /* Command completed successfully */
+   send(conn,api_hdr, sizeof(struct apihdr),              0);
+   
+   /* Success! :) */
+   return(0);
 }
 
 int processINTERFACE_DEL(struct qconfig *conf, int conn,
