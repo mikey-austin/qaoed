@@ -254,45 +254,59 @@ void processpacket(struct qconfig *conf, struct ifst *ifentry,
    return;
 }
 
+int qaoed_startlistener(struct qconfig *conf, struct ifst *ifent)
+{
+   struct threadargs *args;
+   pthread_attr_t atr;
+   
+   args = (struct threadargs *) malloc(sizeof(struct threadargs));
+   
+   if(args == NULL)
+     {
+	logfunc(conf->log,LOG_ERR,
+		"malloc: %s\n", strerror(errno));
+	perror("malloc");
+	return(-1);
+     }
+   
+   args->conf = conf;
+   args->ifentry = ifent;
+   
+   /* Initialize the attributes */
+   pthread_attr_init(&atr);
+   pthread_attr_setdetachstate(&atr, PTHREAD_CREATE_JOINABLE);
+   
+   /* Start the network listener thread */
+   if(pthread_create (&ifent->threadID,
+		      &atr,
+		      (void *)&qaoed_listener,(void *)args) != 0)
+     {
+	logfunc(conf->log,LOG_ERR,
+		"Failed to start network listener for interface %s\n",
+		ifent->ifname);
+	return(-1);
+     }	   
+ 
+   /* Success :) */
+   return(0);
+}
+
+
 int qaoed_network(struct qconfig *conf)
 {
-   pthread_attr_t atr;
+
    struct ifst *ifent = conf->intlist;
-   struct threadargs *args;
+
    
    if(conf == NULL)
      return(-1);
    
    while(ifent)
      {
-	args = (struct threadargs *) malloc(sizeof(struct threadargs));
+	/* Try to start network listener thread */
+	if(qaoed_startlistener(conf,ifent) != 0)
+	  return(-1);
 	
-	if(args == NULL)
-	  {
-	     logfunc(conf->log,LOG_ERR,
-		     "malloc: %s\n", strerror(errno));
-	     perror("malloc");
-	     return(-1);
-	  }
-	
-	args->conf = conf;
-	args->ifentry = ifent;
-	  
-	/* Initialize the attributes */
-	pthread_attr_init(&atr);
-	pthread_attr_setdetachstate(&atr, PTHREAD_CREATE_JOINABLE);
-	
-	/* Start the network listener thread */
-	if(pthread_create (&ifent->threadID,
-			   &atr,
-			   (void *)&qaoed_listener,(void *)args) != 0)
-	  {
-	     logfunc(conf->log,LOG_ERR,
-		     "Failed to start network listener for interface %s\n",
-		     ifent->ifname);
-	     return(-1);
-	  }	
-		
 	ifent = ifent->next;
      }
    

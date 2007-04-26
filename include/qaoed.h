@@ -150,3 +150,4 @@ void qaoed_devdefaults(struct qconfig *conf,struct aoedev *device);
 int qaoed_startdevice(struct aoedev *device);
 void qaoed_intrefup(struct ifst *interface);
 void qaoed_intrefdown(struct ifst *interface);
+int qaoed_startlistener(struct qconfig *conf, struct ifst *ifent);
