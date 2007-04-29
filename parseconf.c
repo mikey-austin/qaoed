@@ -34,6 +34,7 @@ int parsedevacl(struct aoedev *dev, struct cfg *c, struct qconfig *conf)
 	    
 	    /* Assign read acl */
 	    dev->racl = referenceacl(c->rvalue,conf);
+	    aclrefup(dev->racl);
 	    break;
 	    
 	  case 'w' /* write */: 
@@ -42,6 +43,7 @@ int parsedevacl(struct aoedev *dev, struct cfg *c, struct qconfig *conf)
 	    
 	    /* Assign write acl */
 	    dev->wacl = referenceacl(c->rvalue,conf);
+	    aclrefup(dev->wacl);	     
 	    break;
 	     	     
 	  case 'd' /* discover */: 
@@ -51,12 +53,14 @@ int parsedevacl(struct aoedev *dev, struct cfg *c, struct qconfig *conf)
 	       (strcmp(c->lvalue,"discover") == 0))
 	      {
 		dev->cfgracl = referenceacl(c->rvalue,conf);
+		aclrefup(dev->cfgracl);
 		break;
 	      }
 	    
 	    if(strcmp(c->lvalue,"cfgset") == 0)
 	      {
 		dev->cfgsetacl = referenceacl(c->rvalue,conf);
+		aclrefup(dev->cfgsetacl);
 		break;
 	      }
 	    

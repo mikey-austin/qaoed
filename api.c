@@ -601,7 +601,148 @@ int processINTERFACE_SETMTU(struct qconfig *conf, int conn,
       
    return(0);
 }
-  
+
+
+int processTARGET_SETACL(struct qconfig *conf, int conn,
+			 struct apihdr *api_hdr,
+			 struct qaoed_target_info_detailed *target)
+{
+   struct aoedev *device;
+   
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK; /* Default to ok */
+   api_hdr->arg_len = sizeof(struct qaoed_target_info_detailed);
+
+   /* Search for matching device */
+   for(device = conf->devices; device != NULL; device = device->next)
+     if((device->slot == target->info.slot  &&
+	 device->shelf == target->info.shelf))
+       if(target->info.ifname[0] == 0 ||
+	  device->interface == referenceint(target->info.ifname,conf))
+	 {
+	    /* wacl */
+	    if(target->wacl[0] == 0)
+	      {
+		 /* Remove ACL */
+		 if(device->wacl != NULL)
+		   {
+		      aclrefdown(device->wacl);
+		      device->wacl = NULL;
+		   }
+	      }
+	      else
+	      {
+		 /* Add / change ACL */
+		 if(device->wacl != NULL)
+		   {
+		      aclrefdown(device->wacl);
+		      device->wacl = NULL;
+		   }
+		 
+		 device->wacl = referenceacl(target->wacl,conf);
+		 
+		 if(device->wacl == NULL)
+		   api_hdr->error = API_FAILURE; 
+		 else
+		   aclrefup(device->wacl);
+	      }
+	    
+	    
+	    /* racl */
+	    if(target->racl[0] == 0)
+	      {
+		 /* Remove ACL */
+		 if(device->racl != NULL)
+		   {
+		      aclrefdown(device->racl);
+		      device->racl = NULL;
+		   }
+	      }
+	      else
+	      {
+		 /* Add / change ACL */
+		 if(device->racl != NULL)
+		   {
+		      aclrefdown(device->racl);
+		      device->racl = NULL;
+		   }
+		 
+		 device->racl = referenceacl(target->racl,conf);
+		 
+		 if(device->racl == NULL)
+		   api_hdr->error = API_FAILURE; 
+		 else
+		   aclrefup(device->racl);
+	      }
+	    
+	    
+	    
+	    /* cfgsetacl */
+	    if(target->cfgsetacl[0] == 0)
+	      {
+		 /* Remove ACL */
+		 if(device->cfgsetacl != NULL)
+		   {
+		      aclrefdown(device->cfgsetacl);
+		      device->cfgsetacl = NULL;
+		   }
+	      }
+	      else
+	      {
+		 /* Add / change ACL */
+		 if(device->cfgsetacl != NULL)
+		   {
+		      aclrefdown(device->cfgsetacl);
+		      device->cfgsetacl = NULL;
+		   }
+		 
+		 device->cfgsetacl = referenceacl(target->cfgsetacl,conf);
+		 
+		 if(device->cfgsetacl == NULL)
+		   api_hdr->error = API_FAILURE; 
+		 else
+		   aclrefup(device->cfgsetacl);
+	      }
+
+	    
+	    
+	    /* cfgracl */
+	    if(target->cfgracl[0] == 0)
+	      {
+		 /* Remove ACL */
+		 if(device->cfgracl != NULL)
+		   {
+		      aclrefdown(device->cfgracl);
+		      device->cfgracl = NULL;
+		   }
+	      }
+	      else
+	      {
+		 /* Add / change ACL */
+		 if(device->cfgracl != NULL)
+		   {
+		      aclrefdown(device->cfgracl);
+		      device->cfgracl = NULL;
+		   }
+		 
+		 device->cfgracl = referenceacl(target->cfgracl,conf);
+		 
+		 if(device->cfgracl == NULL)
+		   api_hdr->error = API_FAILURE; 
+		 else
+		   aclrefup(device->cfgracl);
+	      }
+	    
+	 }
+      
+   /* Send reply */
+   send(conn,api_hdr, sizeof(struct apihdr),                     0);
+   send(conn,target,  sizeof(struct qaoed_target_info_detailed), 0);
+      
+   return(0);
+}
+
 
 int processTARGET_DEL(struct qconfig *conf, int conn,
 		      struct apihdr *api_hdr, 
@@ -895,7 +1036,7 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	break;
 	
       case API_CMD_TARGET_SETACL:
-	printf("API_CMD_TARGET_SETACL - not implemented yet\n");
+	processTARGET_SETACL(conf,conn,api_hdr,arg);
 	break;
 	
       case API_CMD_ACL_LIST:

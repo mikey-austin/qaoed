@@ -11,6 +11,8 @@ struct aclentry {
 struct aclhdr {
   char *name;        /* Name of this access-list */
   int aclnum;        /* Uniq number identifying this access-list */
+  pthread_mutex_t lock; /* Mutex lock for this acl */
+  int refcnt;
   unsigned char defaultpolicy;
   struct aclentry *acl;
   struct logging *log;
@@ -25,4 +27,6 @@ struct aclhdr * findACL(struct aclhdr *acllist, struct cfg *c,
 			struct qconfig *conf);
 struct aclhdr *referenceacl(char *name, struct qconfig *conf);
 int aclmatch(struct aclhdr *acl, unsigned char *h_addr);
-  
+void aclrefup(struct aclhdr *acl);
+void aclrefdown(struct aclhdr *acl);
+    
