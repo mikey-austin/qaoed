@@ -89,3 +89,26 @@ struct aclhdr *referenceaclint(int aclnum, struct qconfig *conf)
    return(NULL);
 }
 
+void aclrefup(struct aclhdr *acl)
+{
+   if(acl == NULL)
+     return;
+      
+      pthread_mutex_lock(&acl->lock);
+      acl->refcnt++;
+      pthread_mutex_unlock(&acl->lock);
+}
+
+
+
+void aclrefdown(struct aclhdr *acl)
+{
+   if(acl == NULL)
+     return;
+   
+      pthread_mutex_lock(&acl->lock);
+      acl->refcnt--;
+      pthread_mutex_unlock(&acl->lock);
+}
+
+
