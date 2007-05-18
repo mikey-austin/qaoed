@@ -484,7 +484,7 @@ struct tok *tokenize(FILE *fp,struct cfgerror *er)
                        }
 
                    }
-                   globfree(&globbuf);
+                   /* globfree(&globbuf); */
                } else {
                   if(er != NULL)
                         er->logfunc(er,"glob() failed: %s\n", strerror(errno));
