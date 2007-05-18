@@ -1,3 +1,6 @@
+Version 0.80
+ Applied include-fix by Oleksiy Krivoshey <oleksiy@luckyteam.co.uk>
+
 Version 0.79
  Applied include-patch by Oleksiy Krivoshey <oleksiy@luckyteam.co.uk>
 
