@@ -2,7 +2,7 @@
 IRC Log 2007-05-20 FAQ type questions
 
 
-
+{{{
 [18:04:55] <complexmind> but you can use gfs to have shared block device asccess
 [18:05:00] <complexmind> I am using that on my cluster
 [18:05:16] <bernardl_home> is it easy to setup? :)
@@ -190,3 +190,4 @@ IRC Log 2007-05-20 FAQ type questions
 [22:25:45] <complexmind> is it not on gmane?
 [22:26:57] <complexmind> http://dir.gmane.org/gmane.network.aoe.aoetools.general
 [22:27:05] <complexmind> you might find that easier to navigate
+}}}
