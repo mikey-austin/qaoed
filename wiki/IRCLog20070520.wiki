@@ -1,0 +1,192 @@
+#labels faq,irc,clustering,multipath,cache
+IRC Log 2007-05-20 FAQ type questions
+
+
+
+[18:04:55] <complexmind> but you can use gfs to have shared block device asccess
+[18:05:00] <complexmind> I am using that on my cluster
+[18:05:16] <bernardl_home> is it easy to setup? :)
+[18:05:21] <complexmind> hehe, yes and no
+[18:05:25] <bernardl_home> hahaha
+[18:05:28] <complexmind> easy once you work it all out
+[18:05:41] <bernardl_home> cool
+[18:05:47] <bernardl_home> i don't have any experience with parallel filesystems
+[18:05:52] <bernardl_home> i wouldn't mind playing with it, one of these days
+[18:06:46] <complexmind> for me the best tip was finding out that the centos "cluster suite" packages require a roll-back of the kernel to kernel-smp-2.6.9-42.0.3.EL
+[18:07:06] <complexmind> or a re-build of most of the suite which includes about 4 kernel modules
+[18:07:20] <complexmind> once you work that out, and all the packages required it's quite easy
+[18:07:26] <complexmind> and it works /very/ nicely
+[18:07:40] <complexmind> and you get clustering/high availability for almost any service too
+[18:08:21] <complexmind> I have it for gfs, and for making qaoed highly available (both fileservers use clvm to share access to a common volume group)
+[18:10:27] <Pyretic> oh, wrt multiple filesystems on one block device, one can use ocfs2 for that
+[18:10:53] <complexmind> or partitions?
+[18:11:15] <complexmind> or do you mean multiple block device clients?
+[18:12:04] <complexmind> I've heard good things about ocfs2
+[18:12:25] <complexmind> but I use redhat cluster suite for more than the gfs
+[18:12:45] <Pyretic> ahm, never really got into gfs, looks complicated
+[18:12:46] <complexmind> I think ocfs2 might be most useful for simple shared block device access
+[18:13:08] <complexmind> it's not so bad, installing is the hard part, using is easy, just like working with any other filesystem
+[18:13:33] <complexmind> I'm planning a howto soon (one of my clients wants to see one and are paying me to write it)
+[18:13:48] <Pyretic> how does aoe fit in gfs ?
+[18:14:06] <Pyretic> where one would normally use a san u you use aoe ?
+[18:14:09] <bernardl_home> ocfs2?
+[18:14:11] <bernardl_home> oracle?
+[18:14:17] <Pyretic> yeap
+[18:14:22] <bernardl_home> complexmind: i wonder why you need to roll back -- they should support the latest and greatest
+[18:14:26] <bernardl_home> Pyretic: gfs is free
+[18:14:30] <bernardl_home> ocfs2, is not :)
+[18:14:47] <Pyretic> well it's in the kernel sources nowadays, that's free enough for me
+[18:14:56] <bernardl_home> hmmm?
+[18:14:58] <bernardl_home> is it GPL?
+[18:15:06] <Pyretic> yeah
+[18:15:10] <complexmind> well, personally I use gfs for sharing configurations between my storage routers
+[18:15:16] <bernardl_home> Pyretic: i didn't know that
+[18:15:19] <Pyretic> it's not oracle clustering RAC etc. btw, just a shared block device fs
+[18:15:26] <bernardl_home> cool
+[18:15:27] <complexmind> I use the heartbeat/failover stuff for making the qaoed daemon highly available
+[18:15:29] <complexmind> but
+[18:15:29] <bernardl_home> is it easy to setup? :)
+[18:16:09] <complexmind> if you have gfs installed on your aoe clients (initiators) then you can use qaoed as the underlying shared block device
+[18:16:18] <Pyretic> i'm just searching for the right combination of opensource stuff to handle xen clients/live migrations
+[18:16:23] <complexmind> ah
+[18:16:29] <complexmind> gfs is pretty good for that
+[18:16:42] <Pyretic> hmm
+[18:16:43] <complexmind> not that I have tried, but apparently it does work
+[18:17:12] <Pyretic> ah well another item for my list :)
+[18:17:18] <complexmind> :)
+[18:17:47] <Pyretic> there should be a company that should just make a nice point & click linux opensource ha replication system
+[18:17:56] <Pyretic> i'm too lazy to tie it all together
+[18:17:59] <complexmind> I use linux-vserver for virtualisation - that is what I use qaoed for - providing filesystems containing vservers
+[18:19:05] <Pyretic> i was thinking something like drbd/aoe-clvm/evms->ocfs2
+[18:19:29] <complexmind> and by exporting the same block device on the same shelf/slot on two fileservers, and the built in multipathing in aoe6-47 I get filesystem redundancy for the vservers
+[18:19:32] <complexmind> well
+[18:19:47] <complexmind> for clvm you have to have the whole redhat cluster suite installed anyway
+[18:19:57] <Pyretic> uhrg
+[18:19:58] <complexmind> but that for me is the coolest thing about the cluster suite
+[18:20:03] <complexmind> gfs comes close second
+[18:20:36] <Pyretic> what's so cool about clvm ?
+[18:20:54]  Signoff: bernardl_home ()
+[18:21:04] <complexmind> all my fileservers see and manage the same lvm pv's, vg's, lv's
+[18:21:19] <Pyretic> hmmm
+[18:21:22] <complexmind> if I create a new lv it is seen by all connected fileservers
+[18:21:51] <complexmind> and any fileserver can open any lv safely
+[18:22:22] <complexmind> filesystem semantics still apply normally, but the raw block devices can be accessed by any server connected to the san
+[18:22:33] <complexmind> and participating in the cluster, running dlm
+[19:28:24]  Signoff: Wowie__59 (heinlein.freenode.net irc.freenode.net)
+[19:28:50]  Wowie__59 (i=wowie@pi.nxs.se) has joined channel #aoe
+[19:30:17]  Signoff: Wowie__59 (heinlein.freenode.net irc.freenode.net)
+[19:31:59]  Wowie__59 (i=wowie@pi.nxs.se) has joined channel #aoe
+[21:18:36] <dagb> is aoetools/vblade a dead project?
+[21:20:23] <dagb> and is there a mailing lists for qaoed
+[21:31:56] <complexmind> no ..and no... :)
+[21:35:19] <dagb> what does qaoed offer which vlade does not?
+[21:46:37] <Wowie__59> complexmind - It should work fine to add and remove targets :)
+[21:54:00] <complexmind> dagb: ah, thats a great question, in one way, it simply implements the aoe protocol, so it doesn't do anything different. But the code itself is multithreaded, which has a few advantages
+[21:54:35] <complexmind> qaoed is also srting to pick up some of the more useful features, Wowie__59  is working on an api and control tool for the daemon at the moment
+[21:54:41] <complexmind> Wowie__59: hi!
+[21:55:02] <complexmind> s/srting/starting/
+[21:55:07] <dagb> does vblade do direct io now? does qaoed?
+[21:55:15] <complexmind> yes to both
+[21:55:34] <dagb> are there any public performance numbers for either one?
+[21:55:38] <dagb> on GbE
+[21:55:39] <complexmind> I'm not sure if vblade has a configuration-time option, but there is/was certainly a patch for O_Direct, I testyed it
+[21:55:45] <dagb> dedicated GbE
+[21:56:19] <complexmind> not really, there are the usual loose benchmarks hanging around, but nothing really definitive, there are too many factors involved usually
+[21:56:30] <complexmind> I use it dedicated gbe, its great
+[21:56:50] <complexmind> I could probably do some benchmarking if we worked out exactly what numbers we want out of it
+[21:57:05] <Wowie__59> Im going to bed now .. good luck guys. . cya :)
+[21:57:24] <dagb> what GbE chipset do you have and what kind of bandwidth do you get? do you use jumboframes?
+[21:57:27] <complexmind> Wowie__59: night night, we'll try to catch up soon, I have some questions and thoughts on performance
+[21:57:42] <complexmind> and about the size of block reads from the disk
+[21:57:47] <dagb> and latency is also very interesting, of course.  :-)
+[21:58:11] <complexmind> dagb: yes, but being layer 2 it is about as good as it could be on ethernet
+[21:58:31] <complexmind> of course, it may be possible to use infiniband/myrinet or even FCIP
+[21:58:41] <complexmind> although I haven't looked too deeply into any of that
+[21:58:57] <dagb> would be interesting to see a comparative graph with equal access patterns on a local disk and on an AoE disk
+[21:59:18] <complexmind> there are a lot of factors involved
+[21:59:24] <dagb> please don't think I am out to "get" someone.
+[21:59:27] <complexmind> I can get around 800MB/s to may san raw
+[21:59:35] <complexmind> over gige it's a very different matter
+[21:59:45] <dagb> I am genuinely interested in a cheap solution for remote disk access
+[22:00:10] <complexmind> but the remote client can still see 100-200MB/s for small files, and >70MB/s for larger files less than ram size
+[22:00:10] <dagb> holy s...
+[22:00:21] <complexmind> these are just rought observations mind you
+[22:00:27] <dagb> MB or Mb ?
+[22:00:31] <complexmind> MB
+[22:00:42] <complexmind> but then, that is just what dd thinks
+[22:00:54] <dagb> uswhat kind of disk setup do you play with? 800MB/s locally?
+[22:00:59] <complexmind> if you look at actual io toi the etherd device that is a different matter
+[22:01:05] <complexmind> :) yeah
+[22:01:19] <dagb> FC ?
+[22:01:47] <complexmind> http://av-digital.com/a24f-R2224-1.html
+[22:02:05] <dagb> 200MB/s for the client... using bonding, or does the AoE protocol use compression?
+[22:02:14] <complexmind> multipath san fabric, active/active controllers with round robin io
+[22:02:31] <dagb> ok. that's definitely cheating.  :-)
+[22:02:36] <complexmind> like I said, that is just what dd reports, which at the end of the day is the "local experience"
+[22:02:49] <complexmind> but then I did say
+[22:02:57] <complexmind> [22:00:59] <complexmind> if you look at actual io toi the etherd device that is a different matter
+[22:03:12] <dagb> ah. right.
+[22:03:30] <complexmind> over the gige network I can get up to 30MB/s sustained io with cache turned off
+[22:03:42] <complexmind> but then I still need to tune things
+[22:03:55] <dagb> with what kind of GbE chip is that?
+[22:04:00] <complexmind> at that point, I have a pair of fileservers doing around5-10% cpu
+[22:04:05] <complexmind> tg3
+[22:04:10] <dagb> Realtek blows chunks
+[22:04:11] <complexmind> Intel Quad port
+[22:04:43] <dagb> the intel quad port is nice, the tigon3 is decent.
+[22:04:49] <complexmind> mixture of nics
+[22:04:56] <complexmind> 0b:04.0 Ethernet controller: Intel Corporation 82546GB PRO/1000 GT Quad Port Server Adapter (rev 03)
+[22:04:56] <complexmind> 0b:04.1 Ethernet controller: Intel Corporation 82546GB PRO/1000 GT Quad Port Server Adapter (rev 03)
+[22:04:56] <complexmind> 0b:06.0 Ethernet controller: Intel Corporation 82546GB PRO/1000 GT Quad Port Server Adapter (rev 03)
+[22:04:57] <complexmind> 0b:06.1 Ethernet controller: Intel Corporation 82546GB PRO/1000 GT Quad Port Server Adapter (rev 03)
+[22:05:03] <complexmind> those bonded on the file servers
+[22:05:17] <dagb> I have managed to push 700Mbps through the tg3.
+[22:05:43] <dagb> on PCI
+[22:06:15] <dagb> are your cards PCI? 64bit PCI? PCIe?
+[22:07:16] <complexmind> pcie on the target servers, pcix on the initiator
+[22:07:30] <dagb> is there any compression in the AoE protocol?
+[22:07:34] <complexmind> initiators have single gbe, target servers have quad gbe
+[22:07:37] <complexmind> no
+[22:08:14] <complexmind> and there are still funny things being done with block sizes that I don't really understand yet
+[22:08:27] <complexmind> then there is jumbo frames
+[22:08:47] <dagb> hmmm. I would have hoped for more than 30MB/s actual throughput with that.
+[22:08:49] <complexmind> which personally I have had mixed experiences with, but should be fully stable/working
+[22:08:57] <complexmind> yes, me too
+[22:09:05] <complexmind> there is work to be done
+[22:09:12] <complexmind> also note, I use O_DIRECT
+[22:09:30] <dagb> which presumably should add to the throughput'
+[22:09:30] <complexmind> with cache on, the throughput can be 80-100MB/s
+[22:09:34] <complexmind> I am told
+[22:09:51] <complexmind> nope, O_DIRECT slows things down a lot
+[22:09:58] <complexmind> since each commit must be ack'd
+[22:10:14] <complexmind> rather than letting the kernel choose when to flush the dirty buffer
+[22:10:19] <dagb> It does? right O_DIRECT implies "confirmed to disk"
+[22:10:28] <complexmind> yeah
+[22:10:40] <dagb> the caching is client-side?
+[22:10:51] <complexmind> its much safer if your underlying device is caching
+[22:11:06] <complexmind> otherwise you end up with two dirty buffers and if something crashes it all turns to jelly
+[22:11:39] <dagb> absolutely, just couldn't understand how caching improved throughput if it wasn't on the client side.
+[22:12:15] <complexmind> well, the client side still does cached io, but the kernel on the client knows what is committed and what isn't so it is safe
+[22:12:40] <dagb> ok. two more questions.
+[22:13:04] <complexmind> with O_DIRECT, what happens is the aoe server does not do caching, so that if the server says it is committed the client can know that the data was /actually/put on the disk, not sat in a cache waiting to be lost when the power goes
+[22:14:07] <dagb> is it better to export a sw raid with vblade/qaoed, or to run the raid code on the client towards multiple aoe-exported devices from the same server?
+[22:14:58] <dagb> UPS ftw....
+[22:15:20] <complexmind> it very much depends on what your objectives are, I think this needs to be approached from an engineering perspective, ie identify the requirement properly then design the correct layers to implement that requirement
+[22:15:48] <complexmind> there is no wrong or right way, the beauty is the flexibility to choose any combination of layers
+[22:16:28] <complexmind> give yourself plenty of time, a few months ideally to get to know the code, how it works, test it all the different ways
+[22:16:39] <dagb> this is linux of course, so all the layers are already present.
+[22:16:41] <complexmind> it is a young project after all and much of this work has not been documented yet
+[22:17:25] <dagb> is vblade/qaoed usually cpu-bound, or io-bound?
+[22:18:20] <complexmind> brb, btw I think it would be useful to immortalise this conversation on the wiki, would you mind if I just copied/pasted?
+[22:18:36] <dagb> please do. I have more....   :-0
+[22:18:39] <dagb> :-)
+[22:21:34] <dagb> if it is io-bound, wouldn't it make sense to emply a low-overhead compression method, like LZO?
+[22:24:24] <complexmind> I don't know, I guess this would have to be put to coraid on their list, qaoed just implements the published protocol
+[22:24:53] <complexmind> I'm not sure I could really answer that, maybe try searching on their mailling list
+[22:25:25] <complexmind> we don't have a list (yet) but it is a pretty friendly list
+[22:25:32] <complexmind> coraid's that is
+[22:25:35] <dagb> I had a brief look, but the sf.net m/l interface leaves something to be desired...
+[22:25:40] <complexmind> yeah
+[22:25:45] <complexmind> is it not on gmane?
+[22:26:57] <complexmind> http://dir.gmane.org/gmane.network.aoe.aoetools.general
+[22:27:05] <complexmind> you might find that easier to navigate
