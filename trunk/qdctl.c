@@ -190,9 +190,12 @@ struct apihdr * readreply(int sock)
 	close(sock);
 	exit(-1);
      }
-   
-   /* Read in argument data */
-   n = recv(sock, arg->data, api_hdr.arg_len,0);
+
+   /* Read in argument data if any */
+   if(api_hdr.arg_len > 0)
+     n = recv(sock, arg->data, api_hdr.arg_len,0);
+   else
+     n = 0;
    
    /* Make sure we got data of the right size */
    if (n != api_hdr.arg_len)
@@ -316,6 +319,49 @@ int testAPIsocket(int sock)
 
    return(0);
 }
+
+/* Check if an interface exist */
+int check_interface(int sock, char *interface)
+{
+   struct apihdr api_hdr;
+   struct qaoed_interface_cmd qif;
+   struct qaoed_if_info info;
+
+   int n;
+
+   api_hdr.cmd = API_CMD_INTERFACES_STATUS;  /* We want status info */
+   api_hdr.type = REQUEST;  /* This is a request */
+   api_hdr.error = API_ALLOK;  /* Everything is ok */
+   api_hdr.arg_len = sizeof(struct qaoed_interface_cmd);
+   
+   qif.mtu = 0;
+   strncpy(qif.ifname,interface,sizeof(qif.ifname));
+      
+   send(sock,&api_hdr,sizeof(api_hdr),0);
+   send(sock,&qif,sizeof(qif),0);
+   
+   /* Read api_hdr */
+   n = recv(sock, &api_hdr, sizeof(struct apihdr),0);
+   
+   if(n != sizeof(struct apihdr))
+     {
+	printf("Status request failed\n");
+	return(-1);
+     }
+
+   /* Read status */
+   if(api_hdr.arg_len > 0)
+     n = recv(sock, &info, sizeof(struct qaoed_status),0);
+
+   if(strcmp(info.name,interface) != 0)
+     {
+       printf("Status request failed\n");
+       return(-1);
+     }
+
+   return(0);
+}
+
 
 int openapi()
 {
@@ -510,7 +556,22 @@ int list(int sock, int cmd)
 
 void usage()
 {
-   printf("Usage: { add | remove | show } \n");
+   printf("Usage: { add | remove | show | set } \n");
+}
+
+void set_usage()
+{
+   printf("Usage: set { interface } \n");
+}
+
+void set_interface_usage()
+{
+   printf("Usage: set interface { mtu | ... } \n");
+}
+
+void set_interface_mtu_usage()
+{
+   printf("Usage: set interface mtu { auto | <mtu size> } \n");
 }
 
 void show_usage()
@@ -526,6 +587,107 @@ void add_usage()
 void del_usage()
 {
    printf("Usage: remove { target | interface | access-list } \n");
+}
+
+int set_interface_mtu(int sock, int argc, char **argv)
+{
+  struct apihdr api_hdr;
+  struct qaoed_interface_cmd ifcmd;
+   
+   char *interface;
+   char *mtu;
+   int i_mtu = 0;
+   
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	set_interface_mtu_usage();
+	return(-1);
+     }
+
+   interface = argv[1];
+   mtu = argv[2];
+   
+   /* check if interface exists */
+   if(check_interface(sock,interface) != 0)
+     {
+	printf("No such interface configured: %s\n",interface);
+	return(-1);
+     }
+   
+	
+   if(mtu[0] == 'a') /* Auto */
+     i_mtu = -1;
+   else
+     {
+	i_mtu = strtol(mtu, (char **)NULL, 10);
+	
+	if(i_mtu <= 0 || i_mtu > 10000)
+	  {
+	     printf("Invalid MTU value: %d\n",i_mtu);
+	     return(-1);
+	  }
+     }
+   
+   /* configure request */
+   api_hdr.cmd = API_CMD_INTERFACES_SETMTU;  /* Set mtu of interface  */
+   api_hdr.type = REQUEST;  /* This is a request */
+   api_hdr.error = API_ALLOK;  /* Everything is ok */
+   api_hdr.arg_len = sizeof(struct qaoed_interface_cmd);
+   
+   /* Name of interface */
+   strncpy(ifcmd.ifname,interface,sizeof(ifcmd.ifname));
+   
+   /* New mtu value */
+   ifcmd.mtu = i_mtu;
+   
+   /* Send command */
+   send(sock,&api_hdr,sizeof(api_hdr),0);
+   send(sock,&ifcmd,sizeof(ifcmd),0);
+   
+   return(0);
+}
+  
+void set_interface(int sock, int argc, char **argv)
+{
+   
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	set_interface_usage();
+	return;
+     }
+
+   /* del interface */
+   if(strncmp(argv[1],"mtu",3) == 0)
+     {
+	set_interface_mtu(sock,(argc - 1),argv+1);
+	return;
+     }	 
+   
+   set_interface_usage();
+   return;   
+}
+
+void set(int sock, int argc, char **argv)
+{
+   
+   /* Make sure we got an argument of some kind */
+   if(argc < 2)
+     {
+	set_usage();
+	return;
+     }
+
+      /* del interface */
+   if(strncmp(argv[1],"int",3) == 0)
+     {
+	set_interface(sock,(argc - 1),argv+1);
+	return;
+     }	 
+   
+   set_usage();
+   return;   
 }
 
 void del(int sock, int argc, char **argv)
@@ -701,6 +863,12 @@ int main(int argc, char **argv)
       if(strncmp(argv[1],"remove",3) == 0)
       {
 	 del(sock, (argc - 1),argv+1);
+	 return(0);
+      }
+   
+   if(strncmp(argv[1],"set",3) == 0)
+      {
+	 set(sock, (argc - 1),argv+1);
 	 return(0);
       }
         
