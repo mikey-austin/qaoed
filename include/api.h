@@ -60,7 +60,7 @@ struct qaoed_interfaces
 };
 
 
-/* Used to adding / removing interfaces */
+/* Used to adding / removing interfaces and setting MTU*/
 struct qaoed_interface_cmd
 {
    char ifname[20];        /* Name of interface */

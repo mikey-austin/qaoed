@@ -51,8 +51,8 @@ int processSTATUSrequest(struct qconfig *conf, int conn,
    api_hdr->error = API_ALLOK;
    api_hdr->arg_len = sizeof(struct qaoed_status);
    
-   send(conn,api_hdr,sizeof(struct apihdr),0);
-   send(conn,&status,sizeof(struct qaoed_status),0);
+   send(conn,api_hdr,sizeof(struct apihdr),MSG_NOSIGNAL);
+   send(conn,&status,sizeof(struct qaoed_status),MSG_NOSIGNAL);
    
    return(0); 
 }
@@ -109,8 +109,8 @@ int processTARGET_LIST(struct qconfig *conf, int conn,
    api_hdr->error = API_ALLOK;
    api_hdr->arg_len = repsize;
    
-   send(conn,api_hdr,sizeof(struct apihdr),0);
-   send(conn,tglist, repsize,              0);
+   send(conn,api_hdr,sizeof(struct apihdr),MSG_NOSIGNAL);
+   send(conn,tglist, repsize,              MSG_NOSIGNAL);
    
    return(0); 
 }
@@ -202,8 +202,8 @@ int processTARGET_DETAILS(struct qconfig *conf, int conn,
    api_hdr->error = API_ALLOK;
    api_hdr->arg_len = sizeof(struct qaoed_target_info_detailed);
    
-   send(conn,api_hdr, sizeof(struct apihdr),                     0);
-   send(conn,tg,      sizeof(struct qaoed_target_info_detailed), 0);
+   send(conn,api_hdr, sizeof(struct apihdr),                     MSG_NOSIGNAL);
+   send(conn,tg,      sizeof(struct qaoed_target_info_detailed), MSG_NOSIGNAL);
    
    return(0); 
 }
@@ -222,7 +222,7 @@ int processACL_LIST(struct qconfig *conf, int conn,
    /* Count the number access-lists */
    for(acllist = conf->acllist; acllist != NULL; acllist = acllist->next)
      cnt++;
-
+   
    /* Calc size and allocate memory */
    repsize = cnt * sizeof(struct qaoed_acl_info);
    anfo = aclinfo = (struct qaoed_acl_info *) malloc(repsize);
@@ -251,8 +251,9 @@ int processACL_LIST(struct qconfig *conf, int conn,
    api_hdr->arg_len = repsize;
    
    /* Send it */
-   send(conn,api_hdr, sizeof(struct apihdr),0);
-   send(conn,aclinfo, repsize,              0);
+   send(conn,api_hdr, sizeof(struct apihdr),  MSG_NOSIGNAL);
+   if(repsize > 0) /* Send list if any */
+     send(conn,aclinfo, repsize,              MSG_NOSIGNAL);
    
    return(0); 
 }
@@ -284,7 +285,7 @@ int processACL_STATUS(struct qconfig *conf, int conn,
      {
        /* Error */
        api_hdr->error = API_FAILURE;
-       send(conn,api_hdr, sizeof(struct apihdr),0);
+       send(conn,api_hdr, sizeof(struct apihdr),MSG_NOSIGNAL);
        return(0);
      }
 
@@ -317,8 +318,8 @@ int processACL_STATUS(struct qconfig *conf, int conn,
    api_hdr->arg_len = repsize;
    
    /* Send it */
-   send(conn,api_hdr, sizeof(struct apihdr),0);
-   send(conn,aclinfo, repsize,              0);
+   send(conn,api_hdr, sizeof(struct apihdr),MSG_NOSIGNAL);
+   send(conn,aclinfo, repsize,              MSG_NOSIGNAL);
    
    return(0); 
 }
@@ -382,8 +383,8 @@ int processINT_LIST(struct qconfig *conf, int conn,
    api_hdr->arg_len = repsize;
    
    /* Send it */
-   send(conn,api_hdr, sizeof(struct apihdr),0);
-   send(conn,ifinfolist, repsize,           0);
+   send(conn,api_hdr, sizeof(struct apihdr),MSG_NOSIGNAL);
+   send(conn,ifinfolist, repsize,           MSG_NOSIGNAL);
    
    /* Unlock interface list */
    pthread_rwlock_unlock(&conf->intlistlock);
@@ -419,7 +420,7 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
    if(cnt > 0)
      {
 	/* Command failed */
-	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
 	return(-1);
      }
    
@@ -430,7 +431,7 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
    if(newif == NULL)
      {
 	/* Memory allocation failed */
-	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
 	return(-1);
      }
       
@@ -458,7 +459,7 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
 	  close(newif->sock);
 
 	/* Failed to open interface */
-	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
 	return(-1);
      }
       
@@ -468,7 +469,7 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
 	  close(newif->sock);
 
 	/* Failed to start network thread  */
-	send(conn,api_hdr, sizeof(struct apihdr),              0);
+	send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
 	return(-1);
      }
 
@@ -496,7 +497,7 @@ int processINTERFACE_ADD(struct qconfig *conf, int conn,
    ifcmd->mtu = newif->mtu;
    
    /* Command completed successfully */
-   send(conn,api_hdr, sizeof(struct apihdr),              0);
+   send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
    
    /* Success! :) */
    return(0);
@@ -555,8 +556,8 @@ int processINTERFACE_DEL(struct qconfig *conf, int conn,
    pthread_rwlock_unlock(&conf->devlistlock);
    
    /* Send reply */
-   send(conn,api_hdr, sizeof(struct apihdr),              0);
-   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), 0);   
+   send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
+   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), MSG_NOSIGNAL);   
    
    return(0);
 }
@@ -580,7 +581,16 @@ int processINTERFACE_SETMTU(struct qconfig *conf, int conn,
    else
      {
 	/* Set MTU */
-	
+
+	/* mtu == -1 is a request to autoconfigure / reset to default */
+	if(ifcmd->mtu == -1)
+	  {
+	     ifcmd->mtu = getifmtu(interface);
+#ifdef DEBUG
+	     printf("Autoconfiguring interface mtu to %d\n",ifcmd->mtu);
+#endif 
+	  }
+	     
 	/* Make sure mtu value isnt higher then the MTU-value of the int */
 	if(ifcmd->mtu > getifmtu(interface))
 	  api_hdr->error = API_FAILURE;
@@ -594,10 +604,56 @@ int processINTERFACE_SETMTU(struct qconfig *conf, int conn,
 	strcpy(ifcmd->ifname,interface->ifname);
 	ifcmd->mtu = interface->mtu;
      }
+
+#ifdef DEBUG
+   printf("interface mtu reconfigured to %d\n",interface->mtu);
+#endif
+      
+   send(conn,api_hdr, sizeof(struct apihdr), MSG_NOSIGNAL);
+   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), MSG_NOSIGNAL);
+      
+   return(0);
+}
+
+
+int processINTERFACE_STATUS(struct qconfig *conf, int conn,
+			    struct apihdr *api_hdr,
+			    struct qaoed_interface_cmd *ifcmd)
+{
+   struct ifst *interface;
+   struct qaoed_if_info ifinfo;
+
+   /* Encode reply */
+   api_hdr->type = REPLY;
+   api_hdr->error = API_ALLOK;
+   api_hdr->arg_len = sizeof(struct qaoed_if_info);
+   
+   /* Zero struct */
+   memset(&ifinfo,0,sizeof(struct qaoed_if_info));
+   
+   /* Try to lookup interface */
+   interface = referenceint(ifcmd->ifname,conf);
+   
+   if(interface == NULL)
+     api_hdr->error = API_FAILURE;
+   else
+     {
+	ifinfo.mtu = interface->mtu;
+	
+	if(interface->ifname)
+	  strcpy(ifinfo.name, interface->ifname);
+	else
+	  ifinfo.name[0] = 0; /* zt */
+		
+	if(interface->hwaddr)
+	  memcpy(ifinfo.hwaddr, interface->hwaddr,6);
+	else
+	  memset(ifinfo.hwaddr,0,6);
+     }
    
    /* Send reply */
-   send(conn,api_hdr, sizeof(struct apihdr),              0);
-   send(conn,ifcmd,   sizeof(struct qaoed_interface_cmd), 0);   
+   send(conn,api_hdr, sizeof(struct apihdr),              MSG_NOSIGNAL);
+   send(conn,&ifinfo, sizeof(struct qaoed_interface_cmd), MSG_NOSIGNAL);   
       
    return(0);
 }
@@ -737,8 +793,8 @@ int processTARGET_SETACL(struct qconfig *conf, int conn,
 	 }
       
    /* Send reply */
-   send(conn,api_hdr, sizeof(struct apihdr),                     0);
-   send(conn,target,  sizeof(struct qaoed_target_info_detailed), 0);
+   send(conn,api_hdr, sizeof(struct apihdr),                     MSG_NOSIGNAL);
+   send(conn,target,  sizeof(struct qaoed_target_info_detailed), MSG_NOSIGNAL);
       
    return(0);
 }
@@ -774,7 +830,7 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 	pthread_rwlock_unlock(&conf->devlistlock);
 	api_hdr->error = API_FAILURE;
 	api_hdr->arg_len = 0;
-	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+	send(conn, api_hdr, sizeof(struct apihdr)          , MSG_NOSIGNAL);
 	return(-1);
      }
       
@@ -784,7 +840,7 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
 	pthread_rwlock_unlock(&conf->devlistlock);
 	api_hdr->error = API_FAILURE;
 	api_hdr->arg_len = 0;
-	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+	send(conn, api_hdr, sizeof(struct apihdr)          , MSG_NOSIGNAL);
 	return(-1);
      }
 
@@ -848,7 +904,7 @@ int processTARGET_DEL(struct qconfig *conf, int conn,
      }
    
    /* Send the reply to the client */
-   send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+   send(conn, api_hdr, sizeof(struct apihdr)          , MSG_NOSIGNAL);
    
    return(ret);
 }
@@ -870,7 +926,7 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
      {
 	api_hdr->error = API_FAILURE;
 	api_hdr->arg_len = 0;
-	send(conn, api_hdr, sizeof(struct apihdr)          , 0);
+	send(conn, api_hdr, sizeof(struct apihdr)          , MSG_NOSIGNAL);
 	return(-1);
      }
 
@@ -973,8 +1029,8 @@ int processTARGET_ADD(struct qconfig *conf, int conn,
    
    /* Send back results */
    api_hdr->arg_len = sizeof(struct qaoed_target_info);
-   send(conn, api_hdr, sizeof(struct apihdr)          , 0);
-   send(conn, target,  sizeof(struct qaoed_target_info), 0);   
+   send(conn, api_hdr, sizeof(struct apihdr)          ,  MSG_NOSIGNAL);
+   send(conn, target,  sizeof(struct qaoed_target_info), MSG_NOSIGNAL);   
    
    return(0);
 }
@@ -994,7 +1050,7 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	break; 
 	
       case API_CMD_INTERFACES_STATUS:
-	printf("API_CMD_INTERFACES_STATUS - not implemented yet\n");
+	processINTERFACE_STATUS(conf,conn,api_hdr,arg);
 	break;
 	
       case API_CMD_INTERFACES_ADD:
@@ -1006,7 +1062,7 @@ int processAPIrequest(struct qconfig *conf, int conn,
 	break;
 	
       case API_CMD_INTERFACES_SETMTU:
-	printf("API_CMD_INTERFACES_SETMTU - not implemented yet\n");
+	processINTERFACE_SETMTU(conf,conn,api_hdr,arg);
 	break;
 	
       case API_CMD_TARGET_LIST:
@@ -1130,7 +1186,7 @@ int recvAPIrequest(int conn, struct qconfig *conf)
 	       }
 	  
 	  }
-	
+
 	/* Process the request */
 	processAPIrequest(conf, conn,&api_hdr,arg);
 	
